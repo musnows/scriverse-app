@@ -8,9 +8,10 @@
 ./build-node.sh arm64-v8a
 ./build-node.sh x86_64
 ./verify-elf.sh prebuilt/arm64-v8a/libnode.so
+./run-emulator-probe.sh arm64-v8a
 ```
 
-脚本只把下载和中间产物放入 `runtime-node/work/`，最终本机产物放入被 Git 忽略的 `prebuilt/<abi>/libnode.so`。Release CI 必须从源码重建并校验哈希，不接受开发机上传的未知二进制。
+构建脚本只把下载和中间产物放入 `runtime-node/work/`，最终本机产物放入被 Git 忽略的 `prebuilt/<abi>/libnode.so`。模拟器探针默认在功能探针通过后执行 100 次冷启动；可用 `COLD_STARTS` 调整本地调试次数。Release CI 必须从源码重建并校验哈希，不接受开发机上传的未知二进制。
 
 ## 阶段 0 通过条件
 
