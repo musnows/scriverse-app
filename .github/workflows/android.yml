@@ -26,4 +26,12 @@ jobs:
         working-directory: android
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug
       - name: Verify APK alignment
-        run: zipalign -c -P 16 -v 4 android/app/build/outputs/apk/debug/app-debug.apk
+        run: "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: scriverse-app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
