@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "policy": "Every Desktop user capability needs a native Android route, background mapping, or explicit not-applicable reason.",
+  "areas": [
+    {"id":"workspaces","status":"partial","capabilities":["local-runtime","remote-server","health-negotiation","profile-isolation","workspace-switch"]},
+    {"id":"auth","status":"blocked-server-contract","capabilities":["captcha-login","app-session","keystore","logout","session-revocation"]},
+    {"id":"shelf","status":"ui-scaffold","capabilities":["works","create","edit","cover","import","trash","restore"]},
+    {"id":"writing","status":"ui-scaffold","capabilities":["volumes","chapters","chapter-types","native-editor","autosave","find-replace","reading","versions","diff","restore","comments","todos","references","search","goals","export"]},
+    {"id":"knowledge","status":"ui-scaffold","capabilities":["ideas","settings","characters","races","organizations","attachments","favorites","timeline","outline","foreshadowing","review","relationships","native-graph","native-galaxy"]},
+    {"id":"ai","status":"ui-scaffold","capabilities":["providers","models","local-ai","conversations","branch","favorite","export","attachments","streaming","reasoning","citations","tools","analysis","trace","result-apply","roleplay"]},
+    {"id":"collaboration","status":"catalogued","capabilities":["presence","members","permissions","audit","global-replace"]},
+    {"id":"administration","status":"catalogued","capabilities":["users","all-conversations","token-usage","pricing","pagination"]},
+    {"id":"system","status":"partial","capabilities":["backup","diagnostics","updates","foreground-tasks","storage-access-framework"]},
+    {"id":"offline-sync","status":"partial","capabilities":["snapshot","outbox","retry-after","conflicts","rejected","rescue-package","media-cache"]}
+  ]
+}

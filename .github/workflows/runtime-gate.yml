@@ -1,0 +1,41 @@
+name: Android runtime gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "android/runtime-node/**"
+      - ".github/workflows/runtime-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-node:
+    runs-on: macos-14
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: astral-sh/setup-uv@v6
+      - name: Install NDK
+        run: sdkmanager "ndk;28.2.13676358"
+      - name: Build pinned Node runtime
+        run: android/runtime-node/build-node.sh "${{ matrix.abi }}"
+      - name: Verify 16 KB ELF alignment
+        run: |
+          android/runtime-node/verify-elf.sh "android/runtime-node/prebuilt/${{ matrix.abi }}/libnode.so"
+          android/runtime-node/verify-elf.sh "android/runtime-node/prebuilt/${{ matrix.abi }}/libc++_shared.so"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-22.23.2-${{ matrix.abi }}
+          path: android/runtime-node/prebuilt/${{ matrix.abi }}/*.so
+          if-no-files-found: error
