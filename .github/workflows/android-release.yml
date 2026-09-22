@@ -1,0 +1,130 @@
+name: Publish Android release APK
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify release version
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          test "$RELEASE_TAG" = "v$package_version"
+          echo "APP_VERSION_NAME=$package_version" >> "$GITHUB_ENV"
+          echo "APP_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Prepare Android release signing key
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "::error::Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD repository secrets."
+            exit 1
+          fi
+          keystore_path="$RUNNER_TEMP/scriverse-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          test -s "$keystore_path"
+          echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+
+      - name: Install dependencies and sync Capacitor assets
+        run: |
+          npm ci
+          npm run cap:sync
+
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./android/gradlew --no-daemon --stacktrace -p android :app:assembleRelease \
+            -PappVersionCode="$APP_VERSION_CODE" \
+            -PappVersionName="$APP_VERSION_NAME"
+
+      - name: Verify and name release APK
+        shell: bash
+        run: |
+          apk_path="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$apk_path"
+          test "$(apkanalyzer manifest application-id "$apk_path")" = "top.scriverse.app"
+          test "$(apkanalyzer manifest version-code "$apk_path")" = "$APP_VERSION_CODE"
+          test "$(apkanalyzer manifest version-name "$apk_path")" = "$APP_VERSION_NAME"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify "$apk_path"
+          mkdir -p release-artifacts
+          cp "$apk_path" "release-artifacts/scriverse-app-android-${APP_VERSION_NAME}.apk"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: scriverse-app-android-release
+          path: release-artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Attach APK to GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: scriverse-app-android-release
+          path: release-artifacts
+
+      - name: Upload APK to existing release
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+          mapfile -d '' release_apks < <(find release-artifacts -type f -name '*.apk' -print0)
+          test "${#release_apks[@]}" -eq 1
+          gh release upload "$RELEASE_TAG" "${release_apks[@]}" --repo "$GITHUB_REPOSITORY" --clobber
