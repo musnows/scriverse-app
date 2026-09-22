@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#8b3d2c">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <title>叙界</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fffefa; color: #2c2522; }
+      @media (prefers-color-scheme: dark) { :root { background: #171515; color: #f5eee8; } }
+      body { box-sizing: border-box; display: grid; min-width: 0; min-height: 100dvh; margin: 0; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); place-items: center; }
+      main { display: grid; width: min(560px, 100%); gap: 18px; }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand img { width: 42px; height: 42px; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 24px; }
+      h2 { font-size: 18px; }
+      p { color: #766861; line-height: 1.7; }
+      @media (prefers-color-scheme: dark) { p { color: #c7b9b0; } }
+      .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+      .section-heading p { margin-top: 4px; font-size: 13px; }
+      .server-list { display: grid; gap: 10px; }
+      .server-card, form { display: grid; gap: 12px; padding: 16px; border: 1px solid #d8cbc2; border-radius: 12px; background: color-mix(in srgb, currentColor 4%, transparent); }
+      .server-card[data-active="true"] { border-color: #8b3d2c; }
+      .server-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+      .server-card-heading strong { font-size: 15px; }
+      .active-label { color: #8b3d2c; font-size: 12px; font-weight: 650; white-space: nowrap; }
+      .server-origin { display: block; color: #766861; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+      @media (prefers-color-scheme: dark) { .server-origin { color: #c7b9b0; } }
+      .server-actions, .form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .form-actions { justify-content: end; }
+      label { display: grid; gap: 6px; font-size: 13px; }
+      input, button { box-sizing: border-box; min-height: 44px; border-radius: 8px; font: inherit; }
+      input { width: 100%; padding: 8px 10px; border: 1px solid #c9bbb1; background: transparent; color: inherit; }
+      button { padding: 8px 14px; border: 0; background: #8b3d2c; color: #fff; font-weight: 650; }
+      button.secondary { border: 1px solid #c9bbb1; background: transparent; color: inherit; }
+      button.danger { border: 1px solid #b14c43; background: transparent; color: #b14c43; }
+      button:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, #8b3d2c 38%, transparent); outline-offset: 2px; }
+      small, .empty-copy, .notice { color: #766861; line-height: 1.55; }
+      @media (prefers-color-scheme: dark) { small, .empty-copy, .notice { color: #c7b9b0; } }
+      .notice { font-size: 12px; }
+      .error { margin: 0; color: #b14c43; font-size: 13px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand"><img src="/icon.svg" alt=""><div><h1>叙界</h1><p>云端小说创作工作台</p></div></div>
+      <section aria-labelledby="server-list-title">
+        <div class="section-heading">
+          <div><h2 id="server-list-title">远端 Server</h2><p id="server-summary">正在读取 Server 配置……</p></div>
+          <button id="add-server" type="button">添加 Server</button>
+        </div>
+        <div id="server-list" class="server-list" aria-live="polite" aria-busy="true"></div>
+      </section>
+      <form id="server-form" hidden>
+        <h2 id="server-form-title">添加 Server</h2>
+        <label>显示名称<input id="server-name" name="name" maxlength="80" autocomplete="organization" required placeholder="例如：家用 Server"></label>
+        <label>Server 地址<input id="server-origin" name="origin" type="url" maxlength="2048" inputmode="url" autocomplete="url" spellcheck="false" required placeholder="https://example.com"></label>
+        <small>只填写完整 origin，不要附加路径、查询参数或片段。支持 HTTP 和 HTTPS。</small>
+        <p id="server-form-error" class="error" hidden></p>
+        <div class="form-actions"><button id="cancel-server" class="secondary" type="button">取消</button><button type="submit">保存并连接</button></div>
+      </form>
+      <p class="notice">选择 Server 后，登录、作品、权限、设定库和同步能力均由该 Server 的现有 Web 前端提供。手机端不创建本地工作区；下载作品后只缓存允许离线编辑的数据。</p>
+    </main>
+    <script type="module">
+      const PROFILE_KEY = "scriverse.mobile.server-profiles.v1";
+      const ACTIVE_PROFILE_KEY = "scriverse.mobile.active-server-profile.v1";
+      const MAX_PROFILES = 50;
+      const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      const serverList = document.querySelector("#server-list");
+      const serverSummary = document.querySelector("#server-summary");
+      const serverForm = document.querySelector("#server-form");
+      const serverFormTitle = document.querySelector("#server-form-title");
+      const serverFormError = document.querySelector("#server-form-error");
+      const serverName = document.querySelector("#server-name");
+      const serverOrigin = document.querySelector("#server-origin");
+      let editingId = null;
+
+      function storageGet(key) {
+        try { return localStorage.getItem(key); } catch { return null; }
+      }
+
+      function storageSet(key, value) {
+        try { localStorage.setItem(key, value); } catch { /* 存储不可用时仍允许当前连接 */ }
+      }
+
+      function createId() {
+        if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+        const bytes = new Uint8Array(16);
+        if (typeof crypto?.getRandomValues === "function") crypto.getRandomValues(bytes);
+        else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+      }
+
+      function normalizeOrigin(value) {
+        const trimmed = String(value ?? "").trim();
+        if (!trimmed || trimmed.length > 2_048) throw new Error("Server 地址长度无效");
+        let url;
+        try { url = new URL(trimmed); } catch { throw new Error("Server 地址格式无效"); }
+        if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Server 地址只允许 HTTP 或 HTTPS");
+        if (url.username || url.password) throw new Error("Server 地址不能包含用户名或密码");
+        if (url.pathname !== "/" || url.search || url.hash) throw new Error("Server 地址只能填写 origin，不能包含路径、查询参数或片段");
+        return url.origin;
+      }
+
+      function parseProfile(value) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+        const id = typeof value.id === "string" && UUID_PATTERN.test(value.id) ? value.id : null;
+        const name = typeof value.name === "string" ? value.name.trim() : "";
+        if (!id || !name || name.length > 80) return null;
+        let origin;
+        try { origin = normalizeOrigin(value.origin); } catch { return null; }
+        return { id, name, origin, lastUsedAt: typeof value.lastUsedAt === "string" ? value.lastUsedAt : null };
+      }
+
+      function loadProfiles() {
+        let raw;
+        try { raw = JSON.parse(storageGet(PROFILE_KEY) || "[]"); } catch { raw = []; }
+        if (!Array.isArray(raw)) return [];
+        const origins = new Set();
+        return raw.map(parseProfile).filter((profile) => {
+          if (!profile || origins.has(profile.origin)) return false;
+          origins.add(profile.origin);
+          return true;
+        }).slice(0, MAX_PROFILES);
+      }
+
+      function saveProfiles(profiles) {
+        storageSet(PROFILE_KEY, JSON.stringify(profiles));
+      }
+
+      function activeProfileId() {
+        const value = storageGet(ACTIVE_PROFILE_KEY);
+        return typeof value === "string" ? value : null;
+      }
+
+      function setActiveProfile(profile) {
+        const profiles = loadProfiles().map((candidate) => candidate.id === profile.id
+          ? { ...candidate, lastUsedAt: new Date().toISOString() }
+          : candidate);
+        saveProfiles(profiles);
+        storageSet(ACTIVE_PROFILE_KEY, profile.id);
+      }
+
+      function connect(profile) {
+        setActiveProfile(profile);
+        const url = new URL(`${profile.origin}/`);
+        url.searchParams.set("scriverseMobile", "1");
+        window.location.assign(url.toString());
+      }
+
+      function text(element, value) {
+        element.textContent = value;
+        return element;
+      }
+
+      function renderProfiles() {
+        const profiles = loadProfiles();
+        const activeId = activeProfileId();
+        serverList.replaceChildren();
+        serverSummary.textContent = profiles.length === 0
+          ? "还没有保存的 Server 地址，请先添加。"
+          : `已保存 ${profiles.length} 个远端 Server；选择后进入完整云端工作台。`;
+        if (profiles.length === 0) serverList.append(text(document.createElement("p"), "尚未添加 Server 地址。"));
+        for (const profile of profiles) {
+          const card = document.createElement("article");
+          card.className = "server-card";
+          card.dataset.profileId = profile.id;
+          card.dataset.active = String(profile.id === activeId);
+          const heading = document.createElement("div");
+          heading.className = "server-card-heading";
+          heading.append(text(document.createElement("strong"), profile.name));
+          if (profile.id === activeId) {
+            const active = text(document.createElement("span"), "最近使用");
+            active.className = "active-label";
+            heading.append(active);
+          }
+          const origin = text(document.createElement("code"), profile.origin);
+          origin.className = "server-origin";
+          const actions = document.createElement("div");
+          actions.className = "server-actions";
+          const connectButton = text(document.createElement("button"), "连接");
+          connectButton.type = "button";
+          connectButton.dataset.action = "connect";
+          const editButton = text(document.createElement("button"), "编辑");
+          editButton.type = "button";
+          editButton.className = "secondary";
+          editButton.dataset.action = "edit";
+          const deleteButton = text(document.createElement("button"), "删除");
+          deleteButton.type = "button";
+          deleteButton.className = "danger";
+          deleteButton.dataset.action = "delete";
+          actions.append(connectButton, editButton, deleteButton);
+          card.append(heading, origin, actions);
+          serverList.append(card);
+        }
+        serverList.setAttribute("aria-busy", "false");
+      }
+
+      function openForm(profile = null) {
+        editingId = profile?.id ?? null;
+        serverFormTitle.textContent = profile ? "编辑 Server" : "添加 Server";
+        serverName.value = profile?.name ?? "";
+        serverOrigin.value = profile?.origin ?? "";
+        serverFormError.hidden = true;
+        serverForm.hidden = false;
+        serverName.focus();
+      }
+
+      function closeForm() {
+        editingId = null;
+        serverForm.reset();
+        serverFormError.hidden = true;
+        serverForm.hidden = true;
+      }
+
+      document.querySelector("#add-server").addEventListener("click", () => openForm());
+      document.querySelector("#cancel-server").addEventListener("click", closeForm);
+      serverList.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const profile = loadProfiles().find((candidate) => candidate.id === button.closest("[data-profile-id]")?.dataset.profileId);
+        if (!profile) return;
+        if (button.dataset.action === "connect") {
+          connect(profile);
+        } else if (button.dataset.action === "edit") {
+          openForm(profile);
+        } else if (button.dataset.action === "delete" && globalThis.confirm(`删除“${profile.name}”的 Server 配置？`)) {
+          saveProfiles(loadProfiles().filter((candidate) => candidate.id !== profile.id));
+          if (activeProfileId() === profile.id) storageSet(ACTIVE_PROFILE_KEY, "");
+          renderProfiles();
+        }
+      });
+      serverForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        serverFormError.hidden = true;
+        try {
+          const name = serverName.value.trim();
+          if (!name || name.length > 80) throw new Error("显示名称长度必须在 1 到 80 个字符之间");
+          const origin = normalizeOrigin(serverOrigin.value);
+          const profiles = loadProfiles();
+          const duplicate = profiles.find((profile) => profile.origin === origin && profile.id !== editingId);
+          if (duplicate) throw new Error("该 Server 已经存在");
+          if (!editingId && profiles.length >= MAX_PROFILES) throw new Error("保存的 Server 数量已达到上限");
+          const profile = editingId
+            ? { ...profiles.find((candidate) => candidate.id === editingId), name, origin }
+            : { id: createId(), name, origin, lastUsedAt: null };
+          const next = editingId
+            ? profiles.map((candidate) => candidate.id === editingId ? profile : candidate)
+            : [...profiles, profile];
+          saveProfiles(next);
+          connect(profile);
+        } catch (error) {
+          serverFormError.textContent = error instanceof Error ? error.message : "Server 配置无效";
+          serverFormError.hidden = false;
+        }
+      });
+
+      renderProfiles();
+      if (new URL(location.href).searchParams.get("changeServer") === "1") openForm();
+    </script>
+  </body>
+</html>
