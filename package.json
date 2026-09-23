@@ -1,6 +1,6 @@
 {
   "name": "@musnows/scriverse-app",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Scriverse Android cloud workspace client",
   "license": "AGPL-3.0-only",
   "private": true,
