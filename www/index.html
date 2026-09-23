@@ -41,6 +41,7 @@
       small, .empty-copy, .notice { color: #766861; line-height: 1.55; }
       @media (prefers-color-scheme: dark) { small, .empty-copy, .notice { color: #c7b9b0; } }
       .notice { font-size: 12px; }
+      .app-version { font-size: 12px; text-align: center; }
       .error { margin: 0; color: #b14c43; font-size: 13px; }
       [hidden] { display: none !important; }
     </style>
@@ -64,6 +65,7 @@
         <div class="form-actions"><button id="cancel-server" class="secondary" type="button">取消</button><button type="submit">保存并连接</button></div>
       </form>
       <p class="notice">选择 Server 后，登录、作品、权限、设定库和同步能力均由该 Server 的现有 Web 前端提供。手机端不创建本地工作区；下载作品后只缓存允许离线编辑的数据。</p>
+      <p id="app-version" class="app-version" aria-live="polite">正在读取版本……</p>
     </main>
     <script type="module">
       const PROFILE_KEY = "scriverse.mobile.server-profiles.v1";
@@ -77,7 +79,20 @@
       const serverFormError = document.querySelector("#server-form-error");
       const serverName = document.querySelector("#server-name");
       const serverOrigin = document.querySelector("#server-origin");
+      const appVersionLabel = document.querySelector("#app-version");
       let editingId = null;
+
+      async function renderAppVersion() {
+        try {
+          const response = await fetch("./app-version.json", { cache: "no-store" });
+          if (!response.ok) throw new Error("Could not read application version");
+          const { version } = await response.json();
+          if (typeof version !== "string" || !version.trim()) throw new Error("Application version is invalid");
+          appVersionLabel.textContent = `App 版本 ${version}`;
+        } catch {
+          appVersionLabel.textContent = "App 版本不可用";
+        }
+      }
 
       function storageGet(key) {
         try { return localStorage.getItem(key); } catch { return null; }
@@ -263,6 +278,7 @@
       });
 
       renderProfiles();
+      void renderAppVersion();
       if (new URL(location.href).searchParams.get("changeServer") === "1") openForm();
     </script>
   </body>

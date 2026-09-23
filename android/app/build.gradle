@@ -1,7 +1,12 @@
 apply plugin: 'com.android.application'
 
 def appVersionCode = (project.findProperty('appVersionCode') ?: '1').toString().toInteger()
-def appVersionName = (project.findProperty('appVersionName') ?: '1.0').toString()
+def packageJson = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def packageVersion = packageJson.version?.toString()
+if (!packageVersion) {
+    throw new GradleException('The mobile app package version is missing')
+}
+def appVersionName = (project.findProperty('appVersionName') ?: packageVersion).toString()
 def releaseStoreFile = System.getenv('ANDROID_KEYSTORE_PATH')
 def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
 def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')

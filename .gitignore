@@ -3,4 +3,5 @@ dist/
 android/.gradle/
 android/app/build/
 android/local.properties
+www/app-version.json
 .DS_Store
