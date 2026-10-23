@@ -74,6 +74,7 @@ export function installMobileInterface({ profile, offline, requestSwitch }) {
   }
   function sourceCommand(selector, label, detail = "", kind = "library") {
     const source = document.querySelector(selector);
+    if (source?.classList.contains("hidden") && !source.classList.contains("module-nav-secondary")) return;
     if (source) command(label, () => source.click(), { source, detail, disabled: source.disabled, kind });
   }
   function openSheet(kind) {

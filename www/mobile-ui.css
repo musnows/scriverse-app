@@ -147,3 +147,4 @@
   .is-directory .chapter-node { padding-top: 12px; padding-bottom: 12px; }
   .is-directory .volume-header { padding: 5px 0; }
 }
+@media (max-width: 800px) { .scriverse-mobile-app button:disabled { opacity: .45; } }
