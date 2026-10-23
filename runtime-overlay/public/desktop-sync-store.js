@@ -417,7 +417,7 @@ export class DesktopSyncStore {
         entityType,
         entityId,
         "pending"
-      ])))[0] ?? null;
+      ]))).find((record) => Number(record.attempts ?? 0) === 0) ?? null;
       await transactionDone(lookup);
       const mutationId = pending?.mutationId ?? crypto.randomUUID();
       const baseVersionNo = Number(pending?.baseVersionNo ?? current.serverVersionNo);
@@ -670,7 +670,18 @@ export class DesktopSyncStore {
 
   async preparePushBatch(workId, limit = 20) {
     const identity = await this.identity();
-    const pending = (await this.listOutbox(workId, ["pending"]))
+    const outbox = await this.listOutbox(workId);
+    const entityIdentity = (record) => JSON.stringify([record.entityType, record.entityId]);
+    const blocked = new Set(outbox.filter((record) => record.status !== "pending").map(entityIdentity));
+    const firstByEntity = new Map();
+    for (const record of outbox) {
+      if (record.status !== "pending") continue;
+      const key = entityIdentity(record);
+      const first = firstByEntity.get(key);
+      if (!first || Number(record.localRevisionNo) < Number(first.localRevisionNo)) firstByEntity.set(key, record);
+    }
+    const pending = [...firstByEntity.values()]
+      .filter((record) => !blocked.has(entityIdentity(record)))
       .filter((record) => !record.nextAttemptAt || Date.parse(record.nextAttemptAt) <= Date.now())
       .slice(0, Math.max(1, Math.min(20, Number(limit) || 20)));
     if (pending.length === 0) return { clientId: identity.clientId, mutations: [], mutationIds: [] };
@@ -807,6 +818,14 @@ export class DesktopSyncStore {
       return "applied";
     }
     if (result.status === "conflict") {
+      const related = (await requestValue(outboxStore.index("by-work").getAll(workId))).filter((record) => (
+        record.entityType === outbox.entityType && record.entityId === outbox.entityId
+        && ["pending", "syncing", "conflict"].includes(record.status)
+      ));
+      conflictRecord.relatedMutationIds = related.map((record) => record.mutationId);
+      conflictRecord.localSnapshot = entity.localSnapshot;
+      conflictRecord.mergeDraft = entity.localSnapshot;
+      for (const record of related) outboxStore.put({ ...record, status: "conflict", updatedAt: new Date().toISOString() });
       entityStore.put({
         ...entity,
         serverVersionNo: Number(result.conflictVersionNo),

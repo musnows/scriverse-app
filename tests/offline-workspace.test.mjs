@@ -120,3 +120,49 @@ test("downloads use a matching authoritative outline body and version when the p
   assert.equal(stored.items[0].data.goal, "完整权威内容");
   client.dispose();
 });
+
+test("a save after a lost acknowledgement never changes the retried mutation payload", async () => {
+  const store = await fixture();
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { title: "第一次", content: "已发出的内容" });
+  const sent = await store.preparePushBatch("work-1");
+  await store.returnSyncingToPending(sent.mutationIds, null);
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { title: "第二次", content: "发送后继续写的内容" });
+  const retry = await store.preparePushBatch("work-1");
+  assert.deepEqual(retry.mutations, sent.mutations);
+  await store.applyPushResults("work-1", [{ mutationId: sent.mutationIds[0], status: "applied", appliedVersionNo: 4, serverSnapshot: { title: "第一次", content: "已发出的内容", versionNo: 4 } }]);
+  const successor = await store.preparePushBatch("work-1");
+  assert.equal(successor.mutations.length, 1);
+  assert.notEqual(successor.mutationIds[0], sent.mutationIds[0]);
+  assert.equal(successor.mutations[0].baseVersionNo, 4);
+  assert.equal(successor.mutations[0].localSnapshot.content, "发送后继续写的内容");
+  store.close();
+});
+
+test("a delayed retry blocks a later revision of the same entity", async () => {
+  const store = await fixture();
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { content: "先发出的内容" });
+  const first = await store.preparePushBatch("work-1");
+  await store.returnSyncingToPending(first.mutationIds, new Date(Date.now() + 60000).toISOString());
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { content: "等待重试期间修改" });
+  assert.equal((await store.preparePushBatch("work-1")).mutations.length, 0);
+  store.close();
+});
+
+test("a conflict keeps the latest local revision and replaces all related queued revisions", async () => {
+  const store = await fixture();
+  await store.saveLocalEntity("work-1", "character", "character-1", { name: "首次发送" });
+  const sent = await store.preparePushBatch("work-1");
+  await store.returnSyncingToPending(sent.mutationIds, null);
+  await store.saveLocalEntity("work-1", "character", "character-1", { name: "最终本机修改" });
+  await store.preparePushBatch("work-1");
+  await store.applyPushResults("work-1", [{ mutationId: sent.mutationIds[0], status: "conflict", baseVersionNo: 3, conflictVersionNo: 5, baseSnapshot: { name: "共同基础" }, localSnapshot: { name: "首次发送" }, serverSnapshot: { name: "线上修改", versionNo: 5 } }]);
+  const [conflict] = await store.listConflicts("work-1");
+  assert.equal(conflict.localSnapshot.name, "最终本机修改");
+  assert.equal((await store.preparePushBatch("work-1")).mutations.length, 0);
+  await store.resolveConflict(conflict.mutationId, { name: "确认后的合并" });
+  const resolved = await store.preparePushBatch("work-1");
+  assert.equal(resolved.mutations.length, 1);
+  assert.equal(resolved.mutations[0].baseVersionNo, 5);
+  assert.equal(resolved.mutations[0].localSnapshot.name, "确认后的合并");
+  store.close();
+});
