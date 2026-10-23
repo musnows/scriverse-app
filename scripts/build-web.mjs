@@ -24,6 +24,7 @@ workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本").r
 writeFileSync(join(target, "workspace.html"), workspace);
 const bundledAppPath = join(target, "app.js");
 let bundledApp = readFileSync(bundledAppPath, "utf8");
+bundledApp = bundledApp.replace('root.style.setProperty("--font-latin", latinFontStacks[normalized.latinFont]);', 'root.style.setProperty("--font-latin", `${latinFontStacks[normalized.latinFont]}, "Scriverse Mono"`);');
 for (const [before, after] of [["离线时沿用 Server 页面；已下载的正文和设定可编辑，其他功能恢复连接后可用。", "已下载的正文与设定库均可编辑。新建、删除和云端管理操作需重新在线进入；本机 AI 可继续使用。"], ["Desktop ·", "手机 ·"], ["Desktop AI 操作失败", "手机 AI 操作失败"], ["Desktop 离线访问", "App 离线访问"], ["Desktop 用户才能", "App 用户才能"], ["Desktop 同步冲突", "手机同步冲突"]]) bundledApp = bundledApp.replaceAll(before, after);
 writeFileSync(bundledAppPath, bundledApp);
 writeFileSync(join(target, "mobile-app-runtime.js"), "export const mobileOfflineRuntime = { enabled: false, offline: false, setSession() {}, async getOfflineSession() { return null; } };\n");
