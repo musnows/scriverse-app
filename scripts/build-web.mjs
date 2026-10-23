@@ -1,7 +1,14 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { build } from "esbuild";
+
+function filesIn(directory) {
+  return readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name)).flatMap((entry) => (
+    entry.isDirectory() ? filesIn(join(directory, entry.name)) : [join(directory, entry.name)]
+  ));
+}
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const runtimePackage = "node_modules/@musnows/scriverse";
@@ -30,7 +37,22 @@ writeFileSync(bundledAppPath, bundledApp);
 writeFileSync(join(target, "mobile-app-runtime.js"), "export const mobileOfflineRuntime = { enabled: false, offline: false, setSession() {}, async getOfflineSession() { return null; } };\n");
 const launcher = readFileSync("www/index.html", "utf8");
 if (launcher.includes("scriverse.top") || launcher.includes("SCRIVERSE_SERVER_URL")) throw new Error("Mobile entry must not hardcode a remote Server");
-writeFileSync(join(target, "app-version.json"), `${JSON.stringify({ version: packageJson.version, serverVersion: serverPackage.version })}\n`);
+const buildHash = createHash("sha256");
+for (const file of ["package.json", "package-lock.json", "runtime-overlay/web.patch", ...filesIn("src"), ...filesIn("www"), ...filesIn("runtime-overlay/public")]) {
+  if (file.endsWith("app-version.json")) continue;
+  buildHash.update(file).update("\0").update(readFileSync(file)).update("\0");
+}
+const assetVersion = buildHash.digest("hex").slice(0, 16);
+for (const file of filesIn(target)) {
+  if (!/\.(?:html|js|css)$/u.test(file) || file.includes("/vendor/")) continue;
+  const source = readFileSync(file, "utf8");
+  const versioned = source.replace(/(["'`])((?:\/(?!\/)|\.\.?\/)[^"'`\s<>]*?\.(?:m?js|css|svg|woff2)(?:\?[^"'`\s<>]*)?)\1/gu, (match, quote, url) => {
+    if (url.startsWith("/api/")) return match;
+    return `${quote}${url}${url.includes("?") ? "&" : "?"}mobileBuild=${assetVersion}${quote}`;
+  });
+  writeFileSync(file, versioned);
+}
+writeFileSync(join(target, "app-version.json"), `${JSON.stringify({ version: packageJson.version, serverVersion: serverPackage.version, build: assetVersion })}\n`);
 writeFileSync("www/app-version.json", `${JSON.stringify({ version: packageJson.version })}\n`);
 for (const file of ["app.js", "workspace.html", "desktop-offline-api.js", "desktop-sync-store.js", "vendor/vditor/dist/index.min.js"]) {
   if (!existsSync(join(target, file))) throw new Error(`Missing bundled mobile workspace asset: ${file}`);

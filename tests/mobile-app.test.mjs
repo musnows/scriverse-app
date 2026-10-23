@@ -37,3 +37,14 @@ test("launcher reads and displays the package version generated for the app", as
   assert.match(launcher, /fetch\("\.\/app-version\.json"/u);
   assert.match(gradle, /project\.findProperty\('appVersionName'\) \?: packageVersion/u);
 });
+
+test("every app surface and the offline module graph share a content cache version", async () => {
+  const generated = JSON.parse(await readFile(new URL("../dist/public/app-version.json", import.meta.url), "utf8"));
+  assert.match(generated.build, /^[a-f0-9]{16}$/u);
+  for (const path of ["index.html", "workspace.html", "local-ai/index.html", "app.js", "native-bootstrap.js"]) {
+    const source = await readFile(new URL(`../dist/public/${path}`, import.meta.url), "utf8");
+    assert.ok(source.includes(`mobileBuild=${generated.build}`), path);
+  }
+  const font = await readFile(new URL("../dist/public/fonts/scriverse-mono-latin.woff2", import.meta.url));
+  assert.equal(font.subarray(0, 4).toString("ascii"), "wOF2");
+});
