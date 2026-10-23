@@ -20,11 +20,11 @@ await build({ entryPoints: ["src/native-bootstrap.js"], outfile: join(target, "n
 await build({ entryPoints: ["src/local-ai-store.js"], outfile: join(target, "local-ai-engine.js"), bundle: true, format: "esm", target: "es2022" });
 let workspace = readFileSync(join(target, "workspace.html"), "utf8");
 workspace = workspace.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; img-src 'self' data: blob:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'">\n    <script src="/native-bootstrap.js?v=20261023-native-workspace-v1"></script>`);
-workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本");
+workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本").replace("</head>", '    <link rel="stylesheet" href="/mobile-ui.css?v=20261023-phone-navigation-v1">\n  </head>');
 writeFileSync(join(target, "workspace.html"), workspace);
 const bundledAppPath = join(target, "app.js");
 let bundledApp = readFileSync(bundledAppPath, "utf8");
-for (const [before, after] of [["Desktop ·", "手机 ·"], ["Desktop AI 操作失败", "手机 AI 操作失败"], ["Desktop 离线访问", "App 离线访问"], ["Desktop 用户才能", "App 用户才能"], ["Desktop 同步冲突", "手机同步冲突"]]) bundledApp = bundledApp.replaceAll(before, after);
+for (const [before, after] of [["离线时沿用 Server 页面；已下载的正文和设定可编辑，其他功能恢复连接后可用。", "已下载的正文与设定库均可编辑。新建、删除和云端管理操作需重新在线进入；本机 AI 可继续使用。"], ["Desktop ·", "手机 ·"], ["Desktop AI 操作失败", "手机 AI 操作失败"], ["Desktop 离线访问", "App 离线访问"], ["Desktop 用户才能", "App 用户才能"], ["Desktop 同步冲突", "手机同步冲突"]]) bundledApp = bundledApp.replaceAll(before, after);
 writeFileSync(bundledAppPath, bundledApp);
 writeFileSync(join(target, "mobile-app-runtime.js"), "export const mobileOfflineRuntime = { enabled: false, offline: false, setSession() {}, async getOfflineSession() { return null; } };\n");
 const launcher = readFileSync("www/index.html", "utf8");

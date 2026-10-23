@@ -1,8 +1,10 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { installMobileInterface } from "./mobile-interface.js";
 import { cachedProfileUser } from "./profile-session.js";
 import { createMobileLocalAiBridge } from "./local-ai-store.js";
 import { createNativeFetch } from "./native-fetch.js";
 
+document.documentElement.classList.add("scriverse-mobile-app");
 const native = Capacitor.isNativePlatform() ? registerPlugin("NativeWorkspace") : null;
 const rawFetch = globalThis.fetch.bind(globalThis);
 const params = new URL(location.href).searchParams;
@@ -164,4 +166,8 @@ document.addEventListener("DOMContentLoaded", () => {
   button.append(mark, title, detail);
   button.addEventListener("click", () => { localStorage.setItem("scriverse.mobile.last-workspace-url", location.pathname + location.search + location.hash); location.assign("/local-ai/index.html"); });
   grid.prepend(button);
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (isWorkspace && profile) installMobileInterface({ profile, offline: forcedOffline, requestSwitch });
 });

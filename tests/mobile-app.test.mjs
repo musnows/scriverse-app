@@ -6,14 +6,14 @@ import { fileURLToPath } from "node:url";
 
 test("mobile launcher preserves cloud connection and multi-Server management", async () => {
   const html = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
-  assert.match(html, /searchParams\.set\("scriverseMobile", "1"\)/u);
-  assert.match(html, /scriverse\.mobile\.server-profiles\.v1/u);
+  const launcher = await readFile(new URL("../www/launcher.js", import.meta.url), "utf8");
+  assert.match(launcher, /searchParams\.set\("scriverseMobile", "1"\)/u);
+  assert.match(launcher, /scriverse\.mobile\.server-profiles\.v1/u);
   assert.match(html, /保存并连接/u);
   assert.doesNotMatch(html, /scriverse\.top/u);
   assert.doesNotMatch(html, /SCRIVERSE_SERVER_URL/u);
-  const inlineScript = html.match(/<script type="module">([\s\S]*?)<\/script>/u)?.[1];
-  assert.ok(inlineScript);
-  assert.doesNotThrow(() => new Function(inlineScript));
+  assert.match(html, /src="\/launcher\.js\?v=/u);
+  assert.doesNotThrow(() => new Function(launcher));
 });
 
 test("Capacitor package leaves the remote Server choice to the launcher", async () => {
@@ -33,6 +33,7 @@ test("launcher reads and displays the package version generated for the app", as
   const gradle = await readFile(new URL("../android/app/build.gradle", import.meta.url), "utf8");
   assert.equal(versionData.version, packageJson.version);
   assert.match(html, /id="app-version"/u);
-  assert.match(html, /fetch\("\.\/app-version\.json"/u);
+  const launcher = await readFile(new URL("../www/launcher.js", import.meta.url), "utf8");
+  assert.match(launcher, /fetch\("\.\/app-version\.json"/u);
   assert.match(gradle, /project\.findProperty\('appVersionName'\) \?: packageVersion/u);
 });
