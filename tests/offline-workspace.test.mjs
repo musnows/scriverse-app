@@ -75,3 +75,15 @@ test("bundled workspace includes every startup control and editor assets", async
   for (const id of ["desktop-sync-menu-button", "desktop-sync-button", "desktop-switch-button", "desktop-sync-status-button", "desktop-sync-dialog", "desktop-conflict-dialog", "desktop-network-guidance-toast"]) assert.ok(html.includes(`id="${id}"`), id);
   assert.ok((await readFile(new URL("../dist/public/vendor/vditor/dist/index.min.js", import.meta.url), "utf8")).length > 1000);
 });
+
+test("forced offline workspaces never poll or upload when the device is online", async () => {
+  const { createDesktopSyncClient } = await import("../runtime-overlay/public/desktop-sync-client.js");
+  const previous = globalThis.indexedDB;
+  globalThis.indexedDB = new IDBFactory();
+  let requests = 0;
+  const client = await createDesktopSyncClient({ user: { userId: crypto.randomUUID() }, bridge: { shell: { getCapabilities: async () => ({ ok: true, data: { profileId: crypto.randomUUID(), connectionMode: "offline", capabilities: { syncProtocol: { min: 1, max: 1 } } } }) } }, fetchImpl: async () => { requests += 1; throw new Error("Unexpected online request"); } });
+  assert.deepEqual(await client.syncAll(), []);
+  assert.equal(requests, 0);
+  client.dispose();
+  globalThis.indexedDB = previous;
+});

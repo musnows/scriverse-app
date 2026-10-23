@@ -18,7 +18,8 @@ test("mobile launcher preserves cloud connection and multi-Server management", a
 
 test("Capacitor package leaves the remote Server choice to the launcher", async () => {
   const config = await readFile(new URL("../capacitor.config.ts", import.meta.url), "utf8");
-  assert.match(config, /allowNavigation:\s*\["\*"\]/u);
+  assert.doesNotMatch(config, /allowNavigation:\s*\["\*"\]/u);
+  assert.match(config, /webDir: "dist\/public"/u);
   assert.doesNotMatch(config, /server:\s*\{[^}]*url:/su);
   assert.doesNotMatch(config, /SCRIVERSE_SERVER_URL|scriverse\.top/u);
 });

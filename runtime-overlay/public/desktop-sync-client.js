@@ -367,5 +367,5 @@ export async function createDesktopSyncClient({ user, bridge = globalThis.scrive
   const store = new DesktopSyncStore({ profileId: profile.profileId, userId: user.userId });
   await store.open();
   await store.recoverSyncing();
-  return new DesktopSyncClient({ bridge, profile, user, store, fetchImpl });
+  return new DesktopSyncClient({ bridge, profile, user, store, fetchImpl, online: () => profile.connectionMode !== "offline" && globalThis.navigator?.onLine !== false });
 }

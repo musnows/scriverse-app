@@ -1,6 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { build } from "esbuild";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const runtimePackage = "node_modules/@musnows/scriverse";
@@ -15,6 +16,16 @@ if (applied.status !== 0) throw new Error(`Mobile workspace overlay failed: ${ap
 cpSync("runtime-overlay/public", target, { recursive: true });
 renameSync(join(target, "index.html"), join(target, "workspace.html"));
 cpSync("www", target, { recursive: true });
+await build({ entryPoints: ["src/native-bootstrap.js"], outfile: join(target, "native-bootstrap.js"), bundle: true, external: ["/desktop-sync-store.js"], format: "iife", target: "es2022", define: { __SERVER_VERSION__: JSON.stringify(serverPackage.version) } });
+let workspace = readFileSync(join(target, "workspace.html"), "utf8");
+workspace = workspace.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; img-src 'self' data: blob:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'">\n    <script src="/native-bootstrap.js?v=20261023-native-workspace-v1"></script>`);
+workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本");
+writeFileSync(join(target, "workspace.html"), workspace);
+const bundledAppPath = join(target, "app.js");
+let bundledApp = readFileSync(bundledAppPath, "utf8");
+for (const [before, after] of [["Desktop ·", "手机 ·"], ["Desktop AI 操作失败", "手机 AI 操作失败"], ["Desktop 离线访问", "App 离线访问"], ["Desktop 用户才能", "App 用户才能"], ["Desktop 同步冲突", "手机同步冲突"]]) bundledApp = bundledApp.replaceAll(before, after);
+writeFileSync(bundledAppPath, bundledApp);
+writeFileSync(join(target, "mobile-app-runtime.js"), "export const mobileOfflineRuntime = { enabled: false, offline: false, setSession() {}, async getOfflineSession() { return null; } };\n");
 const launcher = readFileSync("www/index.html", "utf8");
 if (launcher.includes("scriverse.top") || launcher.includes("SCRIVERSE_SERVER_URL")) throw new Error("Mobile entry must not hardcode a remote Server");
 writeFileSync(join(target, "app-version.json"), `${JSON.stringify({ version: packageJson.version, serverVersion: serverPackage.version })}\n`);

@@ -64,7 +64,7 @@
         <p id="server-form-error" class="error" hidden></p>
         <div class="form-actions"><button id="cancel-server" class="secondary" type="button">取消</button><button type="submit">保存并连接</button></div>
       </form>
-      <p class="notice">选择 Server 后，登录、作品、权限、设定库和同步能力均由该 Server 的现有 Web 前端提供。手机端不创建本地工作区；下载作品后只缓存允许离线编辑的数据。</p>
+      <p class="notice">选择 Server 后，登录、作品、权限、设定库和同步能力均由该 Server 的现有 Web 前端提供。工作台随 App 保存。下载后可主动离线进入，修改保留在手机中，重新在线进入后按版本同步。</p>
       <p id="app-version" class="app-version" aria-live="polite">正在读取版本……</p>
     </main>
     <script type="module">
@@ -163,9 +163,18 @@
         storageSet(ACTIVE_PROFILE_KEY, profile.id);
       }
 
-      function connect(profile) {
+      function connect(profile, offline = false) {
+        if (offline) {
+          const summary = JSON.parse(storageGet(`scriverse.mobile.offline-summary.${profile.id}`) || "null");
+          if (!summary?.works || !storageGet(`scriverse.mobile.profile-user.${profile.id}`)) {
+            serverSummary.textContent = "请先在线登录并下载作品，再离线进入工作区。";
+            return;
+          }
+        }
         setActiveProfile(profile);
-        const url = new URL(`${profile.origin}/`);
+        const url = new URL("/workspace.html", location.origin);
+        url.searchParams.set("profileId", profile.id);
+        if (offline) url.searchParams.set("offline", "1");
         url.searchParams.set("scriverseMobile", "1");
         window.location.assign(url.toString());
       }
@@ -211,7 +220,11 @@
           deleteButton.type = "button";
           deleteButton.className = "danger";
           deleteButton.dataset.action = "delete";
-          actions.append(connectButton, editButton, deleteButton);
+          const offlineButton = text(document.createElement("button"), "离线进入");
+          offlineButton.type = "button";
+          offlineButton.className = "secondary";
+          offlineButton.dataset.action = "offline";
+          actions.append(connectButton, offlineButton, editButton, deleteButton);
           card.append(heading, origin, actions);
           serverList.append(card);
         }
@@ -244,6 +257,8 @@
         if (!profile) return;
         if (button.dataset.action === "connect") {
           connect(profile);
+        } else if (button.dataset.action === "offline") {
+          connect(profile, true);
         } else if (button.dataset.action === "edit") {
           openForm(profile);
         } else if (button.dataset.action === "delete" && globalThis.confirm(`删除“${profile.name}”的 Server 配置？`)) {

@@ -1,0 +1,138 @@
+import { Capacitor, registerPlugin } from "@capacitor/core";
+import { createNativeFetch } from "./native-fetch.js";
+
+const native = Capacitor.isNativePlatform() ? registerPlugin("NativeWorkspace") : null;
+const rawFetch = globalThis.fetch.bind(globalThis);
+const params = new URL(location.href).searchParams;
+const profileId = params.get("profileId") ?? localStorage.getItem("scriverse.mobile.active-server-profile.v1");
+let profiles = [];
+try {
+  const stored = JSON.parse(localStorage.getItem("scriverse.mobile.server-profiles.v1") || "[]");
+  if (Array.isArray(stored)) profiles = stored;
+} catch { /* 无效工作区配置由列表页重新填写 */ }
+const profile = profiles.find((candidate) => candidate.id === profileId);
+const isWorkspace = location.pathname.endsWith("workspace.html");
+const forcedOffline = params.get("offline") === "1";
+let user = null;
+let leaveState = { dirty: false, activeAiRequests: 0, pendingMutations: 0, conflicts: 0, rejected: 0 };
+const ok = (data = {}) => ({ ok: true, data });
+const noopSubscription = () => () => undefined;
+const sessionKey = (id) => `scriverse.mobile.profile-user.${id}`;
+function cachedUser() {
+  try { return JSON.parse(localStorage.getItem(sessionKey(profileId)) || "null")?.user ?? null; } catch { return null; }
+}
+const ready = (async () => {
+  user = cachedUser();
+  if (native && profile && isWorkspace) {
+    const result = await native.configure({ profileId: profile.id, origin: profile.origin, clientVersion: __SERVER_VERSION__, offline: forcedOffline });
+    user = result.user ?? user;
+  }
+})();
+const nativeFetch = native ? createNativeFetch(native, { ready }) : null;
+
+function saveUser(value) {
+  if (!value?.userId) return;
+  user = value;
+  localStorage.setItem(sessionKey(profileId), JSON.stringify({ user, updatedAt: new Date().toISOString() }));
+}
+
+async function serverFetch(input, init = {}) {
+  const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url, location.href);
+  if (url.origin !== location.origin || !url.pathname.startsWith("/api/")) return rawFetch(input, init);
+  await ready;
+  if (forcedOffline) return Response.json({ error: { code: "DESKTOP_OFFLINE", message: "当前处于离线工作区" } }, { status: 503 });
+  const target = native ? new URL(url.pathname + url.search, profile.origin).href : url.href;
+  const response = await (nativeFetch ?? rawFetch)(target, init);
+  if (response.ok && url.pathname === "/api/auth/session" && String(init.method ?? "GET").toUpperCase() === "GET") {
+    const session = await response.clone().json().catch(() => null);
+    if (session?.data?.authenticated === true) saveUser(session.data.user);
+  }
+  if (response.ok && ["/api/auth/login", "/api/auth/register"].includes(url.pathname)) {
+    const session = await response.clone().json().catch(() => null);
+    saveUser(session?.data?.user);
+  }
+  if (response.ok && url.pathname === "/api/auth/session" && init.method === "DELETE") {
+    user = null;
+    localStorage.removeItem(sessionKey(profileId));
+  }
+  return response;
+}
+
+async function requestSwitch() {
+  if (leaveState.dirty && !globalThis.confirm("当前编辑尚未保存，返回前请确认已保存正文或设定库内容。仍要返回工作区列表吗？")) return ok({ cancelled: true });
+  location.assign("/index.html");
+  return ok();
+}
+
+if (isWorkspace && profile) {
+  globalThis.fetch = serverFetch;
+  globalThis.scriverseDesktopWorkspace = {
+    shellProtocol: 1,
+    syncProtocol: 1,
+    shell: {
+      async getCapabilities() {
+        await ready;
+        return ok({ profileId: profile.id, profileName: profile.name, profileKind: "remote", origin: profile.origin, capabilities: { syncProtocol: { min: 1, max: 1 } }, user, connectionMode: forcedOffline ? "offline" : "online" });
+      },
+      async reportLeaveState(state) {
+        leaveState = { ...leaveState, ...state };
+        if (user) {
+          const { DesktopSyncStore } = await import("/desktop-sync-store.js");
+          const store = new DesktopSyncStore({ profileId: profile.id, userId: user.userId });
+          try {
+            const works = await store.listWorks();
+            localStorage.setItem(`scriverse.mobile.offline-summary.${profile.id}`, JSON.stringify({ userId: user.userId, works: works.length, pending: state.pendingMutations, conflicts: state.conflicts, rejected: state.rejected }));
+          } finally { store.close(); }
+        }
+        return ok();
+      },
+      requestSwitch,
+      confirmQuit: requestSwitch,
+      async getNetworkStatus() { return ok({ online: !forcedOffline && navigator.onLine, monitoring: true }); },
+      onNetworkStatus: noopSubscription,
+      onExternalUrlRequest: noopSubscription,
+      onMenuCommand: noopSubscription,
+      async cacheWorkCover({ workId }) {
+        if (native && !forcedOffline) await native.cacheMedia({ paths: [`/api/works/${encodeURIComponent(workId)}/cover`] });
+        return ok();
+      },
+      async cacheWorkImages({ workId }) {
+        if (native && !forcedOffline && user) {
+          const { DesktopSyncStore } = await import("/desktop-sync-store.js");
+          const store = new DesktopSyncStore({ profileId: profile.id, userId: user.userId });
+          try {
+            const images = await store.listEntities(workId, "setting-attachment");
+            await native.cacheMedia({ paths: images.map((image) => `/api/attachments/${encodeURIComponent(image.entityId)}/content`) });
+          } finally { store.close(); }
+        }
+        return ok();
+      }
+    }
+  };
+}
+
+globalThis.scriverseNative = { native, ready, nativeFetch, requestSwitch, profile, saveUser };
+
+if (native) document.addEventListener("click", (event) => {
+  const anchor = event.target.closest?.("a[download]");
+  if (!anchor) return;
+  const url = new URL(anchor.href, location.href);
+  if (url.protocol !== "blob:" && (url.origin !== location.origin || !url.pathname.startsWith("/api/"))) return;
+  event.preventDefault();
+  void (async () => {
+    const response = await (url.protocol === "blob:" ? rawFetch(url) : serverFetch(url));
+    if (!response.ok) throw new Error("导出失败，请重试");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const { encodeBytes } = await import("./native-fetch.js");
+    await native.saveFile({ name: anchor.download || "scriverse-export.json", mimeType: response.headers.get("content-type") || "application/octet-stream", body: encodeBytes(bytes) });
+    showFileStatus("文件已保存到下载目录");
+  })().catch((error) => showFileStatus(error.message));
+}, { capture: true });
+
+function showFileStatus(message) {
+  let status = document.querySelector("#native-file-status");
+  if (!status) { status = document.createElement("div"); status.id = "native-file-status"; status.className = "toast"; status.setAttribute("role", "status"); document.body.append(status); }
+  status.textContent = message;
+  status.hidden = false;
+  setTimeout(() => { status.hidden = true; }, 5000);
+}

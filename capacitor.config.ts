@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: "叙界",
   webDir: "dist/public",
   server: {
-    allowNavigation: ["*"],
     cleartext: true
   }
 };
