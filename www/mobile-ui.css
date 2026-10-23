@@ -85,6 +85,7 @@
   .mobile-input-active { --mobile-bottom-space: 0px !important; }
   .mobile-input-active .mobile-bottom-nav, body:has(.app-shell.ai-workspace-mode) .mobile-bottom-nav, body.auth-pending .mobile-bottom-nav { display: none !important; }
   .scriverse-mobile-app .app-shell.ai-workspace-mode, .scriverse-mobile-app .ai-panel.is-conversation-workspace { height: 100dvh; min-height: 0; }
+  .scriverse-mobile-app .ai-panel:not(.is-conversation-workspace) { display: none; }
   .scriverse-mobile-app .ai-heading { min-height: 64px; padding: 10px 16px; }
   .scriverse-mobile-app .ai-heading button { min-width: 40px; min-height: 44px; }
   .scriverse-mobile-app .ai-feed { padding: 20px 16px; }
