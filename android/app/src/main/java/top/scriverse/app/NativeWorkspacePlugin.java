@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebView;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -100,6 +101,19 @@ public class NativeWorkspacePlugin extends Plugin {
     private JSONObject sessionForOrigin(String id, String origin) throws Exception {
         JSONObject record = session(id);
         return origin != null && origin.equals(record.optString("origin")) ? record : new JSONObject();
+    }
+
+    @PluginMethod
+    public void setConversationRendering(PluginCall call) {
+        Boolean active = call.getBoolean("active");
+        if (active == null) { call.reject("无效的对话显示状态", "CONVERSATION_RENDERING_INVALID"); return; }
+        getActivity().runOnUiThread(() -> {
+            WebView view = getBridge().getWebView();
+            // 避免软键盘缩放后留下旧的对话合成图块，退出对话时恢复默认绘制。
+            int layer = active ? android.view.View.LAYER_TYPE_SOFTWARE : android.view.View.LAYER_TYPE_NONE;
+            if (view.getLayerType() != layer) view.setLayerType(layer, null);
+            call.resolve();
+        });
     }
 
     @PluginMethod

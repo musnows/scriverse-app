@@ -58,6 +58,45 @@ public class MobileWorkflowTest {
         assertTrue("Could not capture native screenshot", device.takeScreenshot(new File(context.getExternalFilesDir(null), name + ".png")));
     }
     private void hideKeyboard() { if (device.hasObject(By.pkg("com.google.android.inputmethod.latin"))) device.pressBack(); }
+    private static int colorDifference(int first, int second) {
+        return Math.max(Math.abs(android.graphics.Color.red(first) - android.graphics.Color.red(second)), Math.max(Math.abs(android.graphics.Color.green(first) - android.graphics.Color.green(second)), Math.abs(android.graphics.Color.blue(first) - android.graphics.Color.blue(second))));
+    }
+    private void assertCleanNativeFrame(String name) throws Exception {
+        android.graphics.Bitmap screen = android.graphics.BitmapFactory.decodeFile(new File(context.getExternalFilesDir(null), name + ".png").getAbsolutePath());
+        assertNotNull("Native screen capture is missing", screen);
+        java.util.concurrent.atomic.AtomicReference<android.graphics.Bitmap> reference = new java.util.concurrent.atomic.AtomicReference<>();
+        int[] location = new int[2];
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
+                if (!(activity instanceof MainActivity)) continue;
+                android.webkit.WebView web = ((MainActivity) activity).getBridge().getWebView();
+                android.graphics.Bitmap frame = android.graphics.Bitmap.createBitmap(web.getWidth(), web.getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
+                web.getLocationOnScreen(location);
+                web.draw(new android.graphics.Canvas(frame));
+                reference.set(frame);
+            }
+        });
+        android.graphics.Bitmap expected = reference.get();
+        assertNotNull("The visible WebView is missing", expected);
+        int samples = 0;
+        int mismatches = 0;
+        try {
+            for (int y = 8; y < expected.getHeight() - 8; y += 8) {
+                for (int x = 8; x < expected.getWidth() - 8; x += 8) {
+                    int color = expected.getPixel(x, y);
+                    if (colorDifference(color, expected.getPixel(x - 2, y)) > 1 || colorDifference(color, expected.getPixel(x + 2, y)) > 1 || colorDifference(color, expected.getPixel(x, y - 2)) > 1 || colorDifference(color, expected.getPixel(x, y + 2)) > 1) continue;
+                    int screenX = x + location[0];
+                    int screenY = y + location[1];
+                    if (screenX < 0 || screenX >= screen.getWidth() || screenY < 0 || screenY >= screen.getHeight()) continue;
+                    samples++;
+                    if (colorDifference(color, screen.getPixel(screenX, screenY)) > 8) mismatches++;
+                }
+            }
+            System.out.println("Native frame mismatch samples: " + mismatches + "/" + samples);
+            assertTrue("Too few native screen samples", samples > 10000);
+            assertTrue("Native screen contains stale compositor tiles: " + mismatches + "/" + samples, mismatches * 1000L <= samples * 3L);
+        } finally { expected.recycle(); screen.recycle(); }
+    }
     private void ensureLauncher() throws Exception {
         for (int step = 0; step < 5; step++) {
             if (device.hasObject(By.res("add-server"))) return;
@@ -195,6 +234,16 @@ public class MobileWorkflowTest {
         assertTrue("Mobile monospace font did not load", dimensions.getBoolean("fontLoaded"));
         assertTrue("AI workspace extends below the screen", dimensions.getJSONObject("panel").getDouble("bottom") <= dimensions.getJSONArray("viewport").getDouble(1) + 1);
         screenshot("android-offline-ai-chat");
+        assertCleanNativeFrame("android-offline-ai-chat");
+        device.pressBack();
+        find(By.res("mobile-connection-chip"));
+        java.util.concurrent.atomic.AtomicInteger restoredLayer = new java.util.concurrent.atomic.AtomicInteger(-1);
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
+                if (activity instanceof MainActivity) restoredLayer.set(((MainActivity) activity).getBridge().getWebView().getLayerType());
+            }
+        });
+        assertEquals("Leaving AI must restore normal workspace rendering", android.view.View.LAYER_TYPE_NONE, restoredLayer.get());
     }
     @Test public void libraryNavigationAndNativeBack() throws Exception {
         ensureLauncher(); clickText("离线进入"); chooseBook();

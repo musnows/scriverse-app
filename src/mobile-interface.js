@@ -17,7 +17,7 @@ function element(tag, className, text) {
   return node;
 }
 
-export function installMobileInterface({ profile, offline, requestSwitch }) {
+export function installMobileInterface({ profile, offline, requestSwitch, onAiWorkspaceChange = () => undefined }) {
   const app = document.querySelector("#app");
   if (!app || document.querySelector("#mobile-bottom-nav")) return;
   const nav = element("nav", "mobile-bottom-nav");
@@ -147,9 +147,12 @@ export function installMobileInterface({ profile, offline, requestSwitch }) {
     if (dialog?.open && refresh && !refresh.disabled && ["downloaded", "ready", "conflict", "read-only", "failed"].includes(event.detail?.status)) refresh.click();
   });
 
+  let aiWorkspaceVisible = false;
   function updateNavigation() {
     const route = new URLSearchParams(location.hash.slice(1));
     const hasWork = Boolean(route.get("work"));
+    const aiVisible = app.classList.contains("ai-workspace-mode");
+    if (aiVisible !== aiWorkspaceVisible) { aiWorkspaceVisible = aiVisible; onAiWorkspaceChange(aiVisible); }
     for (const key of ["prose", "library", "ai"]) buttons.get(key).disabled = !hasWork;
     const current = app.classList.contains("ai-workspace-mode") ? "ai" : ["module", "entity-editor"].includes(route.get("view")) ? "library" : ["editor", "welcome"].includes(route.get("view")) ? "prose" : route.get("view") === "shelf" ? "shelf" : "more";
     for (const [key, button] of buttons) { if (key === current) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); }

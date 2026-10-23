@@ -7,6 +7,13 @@ import { createNativeFetch } from "./native-fetch.js";
 
 document.documentElement.classList.add("scriverse-mobile-app");
 const native = Capacitor.isNativePlatform() ? registerPlugin("NativeWorkspace") : null;
+let conversationRenderingQueue = Promise.resolve();
+function updateConversationRendering(active) {
+  if (!native) return;
+  conversationRenderingQueue = conversationRenderingQueue.catch(() => undefined).then(() => native.setConversationRendering({ active }));
+  void conversationRenderingQueue.catch(() => console.warn("Could not update native conversation rendering"));
+}
+updateConversationRendering(false);
 const rawFetch = globalThis.fetch.bind(globalThis);
 const params = new URL(location.href).searchParams;
 const profileId = params.get("profileId") ?? localStorage.getItem("scriverse.mobile.active-server-profile.v1");
@@ -174,5 +181,5 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (isWorkspace && profile) installMobileInterface({ profile, offline: forcedOffline, requestSwitch });
+  if (isWorkspace && profile) installMobileInterface({ profile, offline: forcedOffline, requestSwitch, onAiWorkspaceChange: updateConversationRendering });
 });
