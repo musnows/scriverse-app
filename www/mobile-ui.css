@@ -4,6 +4,7 @@
 .scriverse-mobile-app button, .scriverse-mobile-app input, .scriverse-mobile-app select, .scriverse-mobile-app textarea { -webkit-tap-highlight-color: transparent; }
 .scriverse-mobile-app .book-card, .scriverse-mobile-app .settings-hub-card, .scriverse-mobile-app .settings-card, .scriverse-mobile-app .entity-card { border-radius: 16px; }
 .scriverse-mobile-app .primary-button, .scriverse-mobile-app .ghost-button, .scriverse-mobile-app .danger-button { border-radius: 10px; }
+.scriverse-mobile-app .vditor-editor-host .vditor-reset { font-family: var(--font-latin), var(--font-cjk), sans-serif; }
 .mobile-bottom-nav, .mobile-connection-chip { display: none; }
 .mobile-command-sheet { width: min(620px, calc(100% - 24px)); max-height: min(84dvh, 760px); margin: auto auto 12px; padding: 0; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
 .mobile-command-sheet::backdrop { background: #15251f70; backdrop-filter: blur(5px); }
