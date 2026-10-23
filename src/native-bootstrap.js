@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { createMobileLocalAiBridge } from "./local-ai-store.js";
 import { createNativeFetch } from "./native-fetch.js";
 
 const native = Capacitor.isNativePlatform() ? registerPlugin("NativeWorkspace") : null;
@@ -29,6 +30,9 @@ const ready = (async () => {
   }
 })();
 const nativeFetch = native ? createNativeFetch(native, { ready }) : null;
+
+const localAi = createMobileLocalAiBridge({ secrets: native, fetchImpl: nativeFetch ?? rawFetch });
+globalThis.scriverseDesktop = { localAi, settings: { async get() { return ok({ colorTheme: localStorage.getItem("ai-novel-theme") ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") }); } } };
 
 function saveUser(value) {
   if (!value?.userId) return;
@@ -69,6 +73,7 @@ if (isWorkspace && profile) {
   globalThis.scriverseDesktopWorkspace = {
     shellProtocol: 1,
     syncProtocol: 1,
+    localAi,
     shell: {
       async getCapabilities() {
         await ready;
@@ -136,3 +141,26 @@ function showFileStatus(message) {
   status.hidden = false;
   setTimeout(() => { status.hidden = true; }, 5000);
 }
+
+if (location.pathname.includes("/local-ai/")) document.addEventListener("DOMContentLoaded", () => {
+  const back = document.querySelector(".local-ai-back");
+  const previous = localStorage.getItem("scriverse.mobile.last-workspace-url");
+  if (params.get("from") !== "launcher" && back && previous && previous.startsWith("/workspace.html?")) back.href = previous;
+});
+if (isWorkspace) localStorage.setItem("scriverse.mobile.last-workspace-url", location.pathname + location.search + location.hash);
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (!isWorkspace) return;
+  const grid = document.querySelector(".settings-hub-grid");
+  if (!grid) return;
+  const button = document.createElement("button");
+  button.id = "mobile-local-ai-button";
+  button.className = "settings-hub-card";
+  button.type = "button";
+  const mark = document.createElement("span"); mark.className = "settings-card-mark"; mark.textContent = "AI";
+  const title = document.createElement("strong"); title.textContent = "本机 AI";
+  const detail = document.createElement("small"); detail.textContent = "手机本地模型、局域网 endpoint 与独立 API Key";
+  button.append(mark, title, detail);
+  button.addEventListener("click", () => { localStorage.setItem("scriverse.mobile.last-workspace-url", location.pathname + location.search + location.hash); location.assign("/local-ai/index.html"); });
+  grid.prepend(button);
+});

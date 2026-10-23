@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>本地 AI 配置 - 叙界</title>
+    <script src="/native-bootstrap.js?v=20261023-native-workspace-v1"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="./local-ai.css">
+  </head>
+  <body class="mobile-local-ai">
+    <main class="module-view local-ai-config-view">
+      <header class="module-header">
+        <div>
+          <span class="eyebrow">叙界</span>
+          <h1>本地 AI 配置</h1>
+          <p>这里的配置只在当前设备使用。</p>
+        </div>
+        <div class="module-header-actions">
+          <a class="ghost-button local-ai-back" href="/index.html">返回工作区</a>
+          <button id="local-ai-new-provider" class="primary-button" type="button">新建 AI 供应商</button>
+        </div>
+      </header>
+      <div class="module-content">
+        <section class="config-section platform-system-prompt-section">
+          <div class="config-section-header"><div><h2>平台全局系统提示词</h2><p>会追加在 Server 系统提示词之后，仅由当前设备配置的供应商使用。</p></div></div>
+          <label class="field-label"><textarea id="local-ai-system-prompt" rows="7" maxlength="100000" aria-label="全局系统提示词" placeholder="例如：默认使用简体中文，避免代替作者做最终决定。"></textarea></label>
+          <div class="card-actions"><button id="local-ai-save-system-prompt" class="primary-button" type="button">保存全局提示词</button></div>
+        </section>
+        <section class="config-section platform-providers-section">
+          <div class="config-section-header"><div><h2>模型供应商配置</h2><p>管理供应商连接、模型列表和连接状态；模型的多模态能力在对应模型配置中设置。</p></div></div>
+          <div id="local-ai-provider-list" aria-live="polite"><div class="empty-state"><b>正在读取 AI 配置</b>请稍候。</div></div>
+        </section>
+      </div>
+    </main>
+
+    <dialog id="local-ai-form-dialog" class="dialog" aria-labelledby="local-ai-dialog-title">
+      <form id="local-ai-dynamic-form" method="dialog">
+        <div class="dialog-header">
+          <div><span id="local-ai-dialog-eyebrow" class="eyebrow">新增</span><h2 id="local-ai-dialog-title">创建记录</h2><p id="local-ai-dialog-meta" class="dialog-header-meta"></p></div>
+          <button class="dialog-close" data-local-ai-dialog-cancel aria-label="关闭" type="button">×</button>
+        </div>
+        <div id="local-ai-dialog-fields" class="dialog-fields"></div>
+        <p id="local-ai-dialog-error" class="local-ai-form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="local-ai-dialog-danger" class="danger-button hidden" type="button">删除</button>
+          <button class="ghost-button" data-local-ai-dialog-cancel type="button">取消</button>
+          <button id="local-ai-dialog-submit" class="primary-button" value="default" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="local-ai-toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="./local-ai.js"></script>
+  </body>
+</html>

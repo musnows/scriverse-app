@@ -183,7 +183,7 @@ public class NativeWorkspacePlugin extends Plugin {
             if (!method.matches("GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS")) throw new IllegalArgumentException();
             String activeProfile = profileId;
             String origin = uri.getScheme() + "://" + uri.getRawAuthority();
-            boolean serverRequest = activeProfile != null && origin.equals(serverOrigin);
+            boolean serverRequest = activeProfile != null && origin.equals(serverOrigin) && uri.getPath().startsWith("/api/");
             if (serverRequest && offline) throw new IllegalStateException("WORKSPACE_OFFLINE");
             byte[] body = Base64.decode(call.getString("body", ""), Base64.NO_WRAP);
             boolean login = serverRequest && method.equals("POST") && (uri.getPath().equals("/api/auth/login") || uri.getPath().equals("/api/auth/register"));

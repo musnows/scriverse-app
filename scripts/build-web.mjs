@@ -17,6 +17,7 @@ cpSync("runtime-overlay/public", target, { recursive: true });
 renameSync(join(target, "index.html"), join(target, "workspace.html"));
 cpSync("www", target, { recursive: true });
 await build({ entryPoints: ["src/native-bootstrap.js"], outfile: join(target, "native-bootstrap.js"), bundle: true, external: ["/desktop-sync-store.js"], format: "iife", target: "es2022", define: { __SERVER_VERSION__: JSON.stringify(serverPackage.version) } });
+await build({ entryPoints: ["src/local-ai-store.js"], outfile: join(target, "local-ai-engine.js"), bundle: true, format: "esm", target: "es2022" });
 let workspace = readFileSync(join(target, "workspace.html"), "utf8");
 workspace = workspace.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; img-src 'self' data: blob:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'">\n    <script src="/native-bootstrap.js?v=20261023-native-workspace-v1"></script>`);
 workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本");

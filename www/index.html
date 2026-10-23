@@ -65,6 +65,7 @@
         <div class="form-actions"><button id="cancel-server" class="secondary" type="button">取消</button><button type="submit">保存并连接</button></div>
       </form>
       <p class="notice">选择 Server 后，登录、作品、权限、设定库和同步能力均由该 Server 的现有 Web 前端提供。工作台随 App 保存。下载后可主动离线进入，修改保留在手机中，重新在线进入后按版本同步。</p>
+      <button id="local-ai-open" class="secondary" type="button">本机 AI 设置</button>
       <p id="app-version" class="app-version" aria-live="polite">正在读取版本……</p>
     </main>
     <script type="module">
@@ -292,6 +293,7 @@
         }
       });
 
+      document.querySelector("#local-ai-open").addEventListener("click", () => location.assign("/local-ai/index.html?from=launcher"));
       renderProfiles();
       void renderAppVersion();
       if (new URL(location.href).searchParams.get("changeServer") === "1") openForm();
