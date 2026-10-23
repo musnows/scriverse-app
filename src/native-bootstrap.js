@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { createNativeXmlHttpRequest, createNativeEventSource } from "./native-web-apis.js";
 import { installMobileInterface } from "./mobile-interface.js";
 import { cachedProfileUser } from "./profile-session.js";
 import { createMobileLocalAiBridge } from "./local-ai-store.js";
@@ -49,7 +50,7 @@ async function serverFetch(input, init = {}) {
   await ready;
   if (forcedOffline) return Response.json({ error: { code: "DESKTOP_OFFLINE", message: "当前处于离线工作区" } }, { status: 503 });
   const target = native ? new URL(url.pathname + url.search, profile.origin).href : url.href;
-  const response = await (nativeFetch ?? rawFetch)(target, init);
+  const response = await (nativeFetch ?? rawFetch)(input instanceof Request ? new Request(target, input) : target, init);
   if (response.ok && url.pathname === "/api/auth/session" && String(init.method ?? "GET").toUpperCase() === "GET") {
     const session = await response.clone().json().catch(() => null);
     if (session?.data?.authenticated === true) saveUser(session.data.user);
@@ -73,6 +74,10 @@ async function requestSwitch() {
 
 if (isWorkspace && profile) {
   globalThis.fetch = serverFetch;
+  if (native) {
+    globalThis.XMLHttpRequest = createNativeXmlHttpRequest(serverFetch, { baseUrl: location.href, Original: globalThis.XMLHttpRequest });
+    globalThis.EventSource = createNativeEventSource(serverFetch, { baseUrl: location.href, Original: globalThis.EventSource });
+  }
   globalThis.scriverseDesktopWorkspace = {
     shellProtocol: 1,
     syncProtocol: 1,

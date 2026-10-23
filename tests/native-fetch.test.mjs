@@ -59,3 +59,14 @@ test("native network rejects unsafe URLs before sending data", async () => {
   const fetch = createNativeFetch(plugin(() => assert.fail("Unexpected network request")));
   for (const url of ["file:///etc/passwd", "https://user:password@example.test", "https://example.test/#secret"]) await assert.rejects(fetch(url), TypeError);
 });
+
+test("native fetch preserves Request bodies while applying explicit overrides", async () => {
+  const native = plugin(async (input) => {
+    assert.equal(input.method, "PATCH");
+    assert.equal(atob(input.body), "original-body");
+    assert.equal(input.headers["x-overridden"], "new-value");
+    return { status: 204, headers: {} };
+  });
+  const request = new Request("https://example.test/api/entity", { method: "PATCH", headers: { "X-Overridden": "old-value" }, body: "original-body" });
+  assert.equal((await createNativeFetch(native)(request, { headers: { "X-Overridden": "new-value" } })).status, 204);
+});

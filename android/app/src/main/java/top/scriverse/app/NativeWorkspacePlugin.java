@@ -36,6 +36,7 @@ public class NativeWorkspacePlugin extends Plugin {
     private static final int MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final Map<String, HttpURLConnection> requests = new ConcurrentHashMap<>();
+    private final java.util.Set<String> cancelledRequests = ConcurrentHashMap.newKeySet();
     private SharedPreferences preferences;
     private SecretKeySpec masterKey;
     private volatile String profileId;
@@ -172,7 +173,9 @@ public class NativeWorkspacePlugin extends Plugin {
 
     @PluginMethod
     public void cancelRequest(PluginCall call) {
-        HttpURLConnection connection = requests.remove(call.getString("requestId", ""));
+        String requestId = call.getString("requestId", "");
+        cancelledRequests.add(requestId);
+        HttpURLConnection connection = requests.remove(requestId);
         if (connection != null) connection.disconnect();
         call.resolve();
     }
@@ -183,6 +186,7 @@ public class NativeWorkspacePlugin extends Plugin {
         boolean resolved = false;
         try {
             if (!requestId.matches("[A-Za-z0-9_-]{1,200}")) throw new IllegalArgumentException();
+            if (cancelledRequests.contains(requestId)) throw new IllegalStateException("Request cancelled");
             URI uri = validUri(call.getString("url", ""));
             String method = call.getString("method", "GET");
             if (!method.matches("GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS")) throw new IllegalArgumentException();
@@ -226,7 +230,16 @@ public class NativeWorkspacePlugin extends Plugin {
             if (body.length > 0) {
                 connection.setDoOutput(true);
                 connection.setFixedLengthStreamingMode(body.length);
-                try (java.io.OutputStream output = connection.getOutputStream()) { output.write(body); }
+                try (java.io.OutputStream output = connection.getOutputStream()) {
+                    for (int offset = 0; offset < body.length; offset += 16384) {
+                        if (cancelledRequests.contains(requestId)) throw new IllegalStateException("Request cancelled");
+                        int count = Math.min(16384, body.length - offset);
+                        output.write(body, offset, count);
+                        JSObject progress = new JSObject();
+                        progress.put("requestId", requestId); progress.put("loaded", offset + count); progress.put("total", body.length);
+                        notifyListeners("httpUploadProgress", progress);
+                    }
+                }
             }
             int status = connection.getResponseCode();
             JSObject responseHeaders = new JSObject();
@@ -294,6 +307,7 @@ public class NativeWorkspacePlugin extends Plugin {
             } else call.reject("无法连接目标地址，请检查网络与配置", "NETWORK_REQUEST_FAILED");
         } finally {
             requests.remove(requestId);
+            cancelledRequests.remove(requestId);
             if (connection != null) connection.disconnect();
         }
     }

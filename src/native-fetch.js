@@ -10,6 +10,8 @@ export function decodeBytes(value) {
 
 export function createNativeFetch(native, { baseUrl = "https://localhost", ready = Promise.resolve() } = {}) {
   const streams = new Map();
+  const uploads = new Map();
+  const uploadListener = native.addListener("httpUploadProgress", (event) => uploads.get(event.requestId)?.(event));
   const listener = native.addListener("httpStream", (event) => {
     const target = streams.get(event.requestId);
     if (!target) return;
@@ -24,12 +26,14 @@ export function createNativeFetch(native, { baseUrl = "https://localhost", ready
   return async (input, init = {}) => {
     await ready;
     await listener;
+    await uploadListener;
     const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url, baseUrl);
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.hash) throw new TypeError("请求地址无效");
-    const request = new Request(url, input instanceof Request ? input : init);
+    const request = new Request(input instanceof Request ? new Request(url, input) : url, init);
     const signal = init.signal ?? request.signal;
     signal?.throwIfAborted();
     const requestId = crypto.randomUUID();
+    if (typeof init.onUploadProgress === "function") uploads.set(requestId, init.onUploadProgress);
     const stream = request.headers.get("Accept")?.includes("text/event-stream") === true;
     let controller;
     let aborted = false;
@@ -72,6 +76,7 @@ export function createNativeFetch(native, { baseUrl = "https://localhost", ready
       if (signal?.aborted) throw signal.reason;
       throw new TypeError("无法连接目标地址，请检查网络与配置", { cause: error });
     } finally {
+      uploads.delete(requestId);
       if (!stream || aborted) signal?.removeEventListener("abort", abort);
     }
   };
