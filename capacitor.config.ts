@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "top.scriverse.app",
   appName: "叙界",
-  webDir: "www",
+  webDir: "dist/public",
   server: {
     allowNavigation: ["*"],
     cleartext: true
