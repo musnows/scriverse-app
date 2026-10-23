@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("top.scriverse.app", appContext.getPackageName());
+        assertTrue(appContext.getPackageName().equals("top.scriverse.app") || appContext.getPackageName().equals("top.scriverse.app.e2e"));
     }
 }
