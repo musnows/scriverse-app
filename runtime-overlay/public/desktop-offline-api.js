@@ -5,6 +5,7 @@ import {
 } from "./desktop-offline-conversations.js?v=20260930-desktop-offline-history-v6";
 import { DesktopOfflineConversationAi } from "./desktop-offline-conversation-ai.js?v=20260930-desktop-offline-context-v3";
 import { buildDesktopOfflineSearchResults, DESKTOP_OFFLINE_SEARCH_TYPES, prioritizeDesktopOfflineSearchResults } from "./desktop-offline-search.js?v=20261011-desktop-global-search-v1";
+import { countProseWords } from "./text-count.js?v=20260906-chapter-word-count-consistency-v1";
 
 export class DesktopOfflineApiError extends Error {
   constructor(code, message) {
@@ -274,7 +275,7 @@ function workAccess() {
 }
 
 function textCount(value) {
-  return Array.from(String(value ?? "").replace(/\s/gu, "")).length;
+  return countProseWords(value);
 }
 
 function filterForeshadows(records, status) {

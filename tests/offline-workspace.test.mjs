@@ -166,3 +166,12 @@ test("a conflict keeps the latest local revision and replaces all related queued
   assert.equal(resolved.mutations[0].localSnapshot.name, "确认后的合并");
   store.close();
 });
+
+test("offline word counts use the Server rule for mixed Chinese, Latin words and punctuation", async () => {
+  const store = await fixture();
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { id: "chapter-1", workId: "work-1", title: "混合正文", content: "你好，Scriverse 123！" });
+  const api = new DesktopOfflineApi({ store, client: { emitStatus: async () => undefined } });
+  assert.equal((await api.request("/api/chapters/chapter-1")).wordCount, 4);
+  assert.equal((await api.work("work-1")).wordCount, 4);
+  store.close();
+});
