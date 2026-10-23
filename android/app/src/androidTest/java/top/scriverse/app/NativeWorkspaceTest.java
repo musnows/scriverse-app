@@ -24,8 +24,17 @@ public class NativeWorkspaceTest {
     private String origin;
     private String authOrigin;
     private static class TestPlugin extends NativeWorkspacePlugin {
+        final java.util.List<JSObject> streamEvents = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final java.util.List<JSObject> uploadEvents = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final CountDownLatch streamDone = new CountDownLatch(1);
         @Override public Context getContext() { return InstrumentationRegistry.getInstrumentation().getTargetContext(); }
-        @Override protected void notifyListeners(String eventName, JSObject value) {}
+        @Override protected void notifyListeners(String eventName, JSObject value) {
+            if (eventName.equals("httpUploadProgress")) uploadEvents.add(value);
+            if (eventName.equals("httpStream")) {
+                streamEvents.add(value);
+                if (value.optBoolean("done") || value.has("error")) streamDone.countDown();
+            }
+        }
     }
     private static class Call extends PluginCall {
         final CountDownLatch done = new CountDownLatch(1);
@@ -108,5 +117,29 @@ public class NativeWorkspaceTest {
     @Test public void unsafeProtocolsCannotBeRead() throws Exception {
         JSObject data = new JSObject(); data.put("requestId", UUID.randomUUID().toString()); data.put("url", "file:///data/local/tmp/secret");
         Call call = new Call(data); plugin.request(call); call.await(); assertEquals("NETWORK_REQUEST_FAILED", call.errorCode);
+    }
+    @Test public void nativeStreamingPreservesUnicodeAndCompletionEvents() throws Exception {
+        configure(origin, false);
+        JSObject data = new JSObject(); data.put("requestId", UUID.randomUUID().toString()); data.put("url", origin + "/api/__e2e/stream"); data.put("stream", true);
+        Call call = new Call(data); plugin.request(call); call.await(); assertNull(call.errorCode); assertEquals(200, call.result.getInt("status"));
+        assertTrue("Native stream did not finish", plugin.streamDone.await(10, TimeUnit.SECONDS));
+        java.io.ByteArrayOutputStream content = new java.io.ByteArrayOutputStream();
+        for (JSObject event : plugin.streamEvents) {
+            assertFalse("Native stream reported a transport error", event.has("error"));
+            if (event.has("chunk")) content.write(Base64.decode(event.getString("chunk"), Base64.NO_WRAP));
+        }
+        assertEquals("event: native-message\ndata: 中文流式内容\n\ndata: [DONE]\n\n", content.toString("UTF-8"));
+        assertTrue(plugin.streamEvents.get(plugin.streamEvents.size() - 1).getBoolean("done"));
+    }
+    @Test public void nativeMultipartUploadsPreserveBytesAndReportProgress() throws Exception {
+        configure(origin, false);
+        String body = "--native-e2e-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"story.txt\"\r\nContent-Type: text/plain\r\n\r\n中文上传\r\n--native-e2e-boundary--\r\n";
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        JSObject data = new JSObject(); data.put("requestId", UUID.randomUUID().toString()); data.put("url", origin + "/api/__e2e/multipart"); data.put("method", "POST"); data.put("body", Base64.encodeToString(bytes, Base64.NO_WRAP));
+        JSObject headers = new JSObject(); headers.put("Content-Type", "multipart/form-data; boundary=native-e2e-boundary"); data.put("headers", headers);
+        Call call = new Call(data); plugin.request(call); call.await(); assertNull(call.errorCode); assertEquals(200, call.result.getInt("status"));
+        JSONObject remote = payload(call); assertEquals(bytes.length, remote.getInt("size")); assertTrue(remote.getBoolean("multipart")); assertTrue(remote.getBoolean("unicodePreserved"));
+        assertFalse("Native upload did not report progress", plugin.uploadEvents.isEmpty());
+        assertEquals(bytes.length, plugin.uploadEvents.get(plugin.uploadEvents.size() - 1).getInt("loaded"));
     }
 }

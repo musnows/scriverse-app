@@ -71,6 +71,12 @@ app.get("/__e2e/llm-status", llmStatus);
 llmApp.get("/__e2e/llm-status", llmStatus);
 app.post("/__e2e/reset-llm", (_request, response) => { llmCalls = 0; observedWorkContext = false; observedLockedSetting = false; observedOfflineToolResult = false; response.sendStatus(204); });
 app.get("/api/__e2e/authorization", (request, response) => response.json({ authorizationPresent: Boolean(request.headers.authorization) }));
+app.post("/api/__e2e/multipart", express.raw({ type: () => true, limit: "1mb" }), (request, response) => response.json({ size: request.body.length, multipart: request.headers["content-type"]?.includes("multipart/form-data; boundary=native-e2e-boundary"), unicodePreserved: request.body.toString("utf8").includes("中文上传") }));
+app.get("/api/__e2e/stream", (_request, response) => {
+  response.setHeader("Content-Type", "text/event-stream");
+  response.write('event: native-message\ndata: 中文流式内容\n\n');
+  setTimeout(() => response.end('data: [DONE]\n\n'), 50);
+});
 app.use(runtime.app);
 let llmPort = Math.max(10001, Number(process.env.LLM_PORT) || 24401);
 let llmServer;
