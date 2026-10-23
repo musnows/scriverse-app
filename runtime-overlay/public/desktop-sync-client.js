@@ -175,6 +175,15 @@ export class DesktopSyncClient {
         }
         after = page.nextAfter;
       }
+      for (const item of items) {
+        if (item.entityType !== "chapter-outline" || Number(item.versionNo) > 0) continue;
+        const current = await request(`/api/chapters/${encodeURIComponent(item.entityId)}/outline`);
+        if (!Number.isInteger(current?.versionNo) || current.versionNo < 1) {
+          throw new DesktopSyncClientError("SYNC_SNAPSHOT_INVALID", "已有大纲缺少有效版本，下载已暂停，本机副本保持不变");
+        }
+        item.versionNo = current.versionNo;
+        item.data = { ...current, id: item.entityId };
+      }
       const stored = await this.store.replaceSnapshot({
         workId: work.id,
         cutoffCursor: descriptor.cutoffCursor,

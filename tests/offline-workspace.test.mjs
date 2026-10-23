@@ -100,3 +100,23 @@ test("an outline without a Server version cannot block valid pending edits", asy
   assert.equal((await store.preparePushBatch("work-1")).mutations.length, 1);
   store.close();
 });
+
+test("downloads use a matching authoritative outline body and version when the package omits its version", async () => {
+  const { DesktopSyncClient } = await import("../runtime-overlay/public/desktop-sync-client.js");
+  let stored = null;
+  const client = new DesktopSyncClient({ store: { replaceSnapshot: async (value) => { stored = value; return value; }, close() {} }, user: {}, bridge: {}, pollIntervalMs: 0 });
+  client.request = async (path, options) => {
+    if (options?.method === "DELETE") return null;
+    if (path.endsWith("/snapshots")) return { snapshotId: "snapshot-1", cutoffCursor: 4 };
+    if (path.includes("/items?")) return { items: [{ entityType: "chapter-outline", entityId: "chapter-1", versionNo: 0, data: { goal: "下载开始时的内容" } }], hasMore: false };
+    if (path.endsWith("/outline")) return { chapterId: "chapter-1", goal: "完整权威内容", versionNo: 6 };
+    throw new Error("Unexpected test request");
+  };
+  client.emitStatus = async () => undefined;
+  client.refreshOfflineAgentCorpus = async () => undefined;
+  await client.downloadWork({ id: "work-1", offlineAccessEnabled: true });
+  assert.equal(stored.items[0].versionNo, 6);
+  assert.equal(stored.items[0].data.versionNo, 6);
+  assert.equal(stored.items[0].data.goal, "完整权威内容");
+  client.dispose();
+});
