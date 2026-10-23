@@ -139,7 +139,12 @@ export function installMobileInterface({ profile, offline, requestSwitch }) {
     chip.setAttribute("aria-label", `离线与同步：${chip.textContent}`);
   }
   updateConnection();
-  window.addEventListener("scriverse-desktop-sync-state", (event) => updateConnection(event.detail));
+  window.addEventListener("scriverse-desktop-sync-state", (event) => {
+    updateConnection(event.detail);
+    const dialog = document.querySelector("#desktop-sync-dialog");
+    const refresh = document.querySelector("#desktop-sync-refresh");
+    if (dialog?.open && refresh && !refresh.disabled && ["downloaded", "ready", "conflict", "read-only", "failed"].includes(event.detail?.status)) refresh.click();
+  });
 
   function updateNavigation() {
     const route = new URLSearchParams(location.hash.slice(1));
