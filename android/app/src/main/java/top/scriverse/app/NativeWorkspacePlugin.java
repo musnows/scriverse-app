@@ -96,6 +96,11 @@ public class NativeWorkspacePlugin extends Plugin {
         return value == null ? new JSONObject() : new JSONObject(value);
     }
 
+    private JSONObject sessionForOrigin(String id, String origin) throws Exception {
+        JSONObject record = session(id);
+        return origin != null && origin.equals(record.optString("origin")) ? record : new JSONObject();
+    }
+
     @PluginMethod
     public void configure(PluginCall call) {
         try {
@@ -109,7 +114,7 @@ public class NativeWorkspacePlugin extends Plugin {
             if (!clientVersion.matches("\\d+\\.\\d+\\.\\d+")) throw new IllegalArgumentException();
             offline = call.getBoolean("offline", false);
             JSObject result = new JSObject();
-            JSONObject record = session(id);
+            JSONObject record = sessionForOrigin(id, serverOrigin);
             result.put("user", record.optJSONObject("user"));
             result.put("expiresAt", record.optString("expiresAt", ""));
             call.resolve(result);
@@ -213,7 +218,7 @@ public class NativeWorkspacePlugin extends Plugin {
                 connection.setRequestProperty(name, headers.optString(name));
             }
             if (serverRequest && !login) {
-                String token = session(activeProfile).optString("token", "");
+                String token = sessionForOrigin(activeProfile, origin).optString("token", "");
                 if (!token.isEmpty()) connection.setRequestProperty("Authorization", "Bearer " + token);
             }
             connection.setRequestProperty("Accept-Encoding", "identity");
@@ -260,7 +265,9 @@ public class NativeWorkspacePlugin extends Plugin {
                     JSONObject payload = new JSONObject(new String(responseBody, StandardCharsets.UTF_8));
                     JSONObject data = payload.getJSONObject("data");
                     if (data.optString("token").isEmpty() || data.optJSONObject("user") == null) throw new IllegalStateException("Invalid authentication response");
+                    data.put("origin", origin);
                     writeSecret("session:" + activeProfile, data.toString());
+                    data.remove("origin");
                     data.remove("token");
                     data.put("csrfToken", JSONObject.NULL);
                     responseBody = payload.toString().getBytes(StandardCharsets.UTF_8);
@@ -268,7 +275,8 @@ public class NativeWorkspacePlugin extends Plugin {
                 if (serverRequest && method.equals("GET") && uri.getPath().equals("/api/auth/session") && status == 200) {
                     JSONObject data = new JSONObject(new String(responseBody, StandardCharsets.UTF_8)).optJSONObject("data");
                     if (data != null && data.optBoolean("authenticated") && data.optJSONObject("user") != null) {
-                        JSONObject saved = session(activeProfile);
+                        JSONObject saved = sessionForOrigin(activeProfile, origin);
+                        saved.put("origin", origin);
                         saved.put("user", data.getJSONObject("user"));
                         writeSecret("session:" + activeProfile, saved.toString());
                     }
@@ -349,8 +357,13 @@ public class NativeWorkspacePlugin extends Plugin {
         if (profileId == null || !path.matches("/api/(?:attachments/[^/]+/content|works/[^/]+/cover|users/[^/]+/avatar)(?:\\?.*)?")) return null;
         HttpURLConnection connection = null;
         try {
-            String userId = session(profileId).optJSONObject("user").optString("userId", "");
-            String identity = profileId + ":" + userId + ":" + path;
+            String activeProfile = profileId;
+            String activeOrigin = serverOrigin;
+            JSONObject activeSession = sessionForOrigin(activeProfile, activeOrigin);
+            JSONObject activeUser = activeSession.optJSONObject("user");
+            if (activeUser == null) return null;
+            String userId = activeUser.optString("userId", "");
+            String identity = activeProfile + ":" + userId + ":" + path;
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(identity.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte value : hash) hex.append(String.format("%02x", value));
@@ -359,11 +372,11 @@ public class NativeWorkspacePlugin extends Plugin {
             File cached = new File(directory, hex + ".bin");
             String mimeKey = "media-type:" + hex;
             if (!offline) {
-                connection = (HttpURLConnection) new URI(serverOrigin + path).toURL().openConnection();
+                connection = (HttpURLConnection) new URI(activeOrigin + path).toURL().openConnection();
                 connection.setConnectTimeout(10000);
                 connection.setReadTimeout(15000);
                 connection.setInstanceFollowRedirects(false);
-                connection.setRequestProperty("Authorization", "Bearer " + session(profileId).optString("token"));
+                connection.setRequestProperty("Authorization", "Bearer " + activeSession.optString("token"));
                 if (connection.getResponseCode() == 200 && connection.getContentType() != null && connection.getContentType().startsWith("image/")) {
                     byte[] bytes;
                     try (InputStream input = connection.getInputStream()) { bytes = readBounded(input, 16000000); }

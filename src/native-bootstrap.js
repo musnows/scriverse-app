@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { cachedProfileUser } from "./profile-session.js";
 import { createMobileLocalAiBridge } from "./local-ai-store.js";
 import { createNativeFetch } from "./native-fetch.js";
 
@@ -20,7 +21,7 @@ const ok = (data = {}) => ({ ok: true, data });
 const noopSubscription = () => () => undefined;
 const sessionKey = (id) => `scriverse.mobile.profile-user.${id}`;
 function cachedUser() {
-  try { return JSON.parse(localStorage.getItem(sessionKey(profileId)) || "null")?.user ?? null; } catch { return null; }
+  try { return cachedProfileUser(JSON.parse(localStorage.getItem(sessionKey(profileId)) || "null"), profile?.origin); } catch { return null; }
 }
 const ready = (async () => {
   user = cachedUser();
@@ -37,7 +38,7 @@ globalThis.scriverseDesktop = { localAi, settings: { async get() { return ok({ c
 function saveUser(value) {
   if (!value?.userId) return;
   user = value;
-  localStorage.setItem(sessionKey(profileId), JSON.stringify({ user, updatedAt: new Date().toISOString() }));
+  localStorage.setItem(sessionKey(profileId), JSON.stringify({ user, origin: profile?.origin, updatedAt: new Date().toISOString() }));
 }
 
 async function serverFetch(input, init = {}) {
