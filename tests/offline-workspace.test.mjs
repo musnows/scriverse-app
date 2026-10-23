@@ -87,3 +87,16 @@ test("forced offline workspaces never poll or upload when the device is online",
   client.dispose();
   globalThis.indexedDB = previous;
 });
+
+test("an outline without a Server version cannot block valid pending edits", async () => {
+  const store = await fixture();
+  await store.replaceSnapshot({ workId: "empty-outline-work", items: [
+    { entityType: "work", entityId: "empty-outline-work", data: { id: "empty-outline-work", title: "未建大纲" } },
+    { entityType: "chapter-outline", entityId: "chapter-without-outline", versionNo: 0, data: { id: "chapter-without-outline", chapterId: "chapter-without-outline", versionNo: 0, goal: "", createdAt: null } }
+  ] });
+  await assert.rejects(store.saveLocalEntity("empty-outline-work", "chapter-outline", "chapter-without-outline", { goal: "尚未在线创建" }), { code: "SYNC_ENTITY_NOT_CREATED" });
+  assert.equal((await store.statusSummary("empty-outline-work")).pending, 0);
+  await store.saveLocalEntity("work-1", "chapter", "chapter-1", { title: "正常版本", content: "可以同步" });
+  assert.equal((await store.preparePushBatch("work-1")).mutations.length, 1);
+  store.close();
+});

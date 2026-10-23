@@ -406,6 +406,9 @@ export class DesktopSyncStore {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const current = await this.getEntity(workId, entityType, entityId);
       if (!current) throw new DesktopSyncStoreError("SYNC_ENTITY_NOT_FOUND", "离线副本中不存在该记录");
+      if (!Number.isInteger(Number(current.serverVersionNo)) || Number(current.serverVersionNo) < 1) {
+        throw new DesktopSyncStoreError("SYNC_ENTITY_NOT_CREATED", "这份记录尚无线上版本，请在线创建后重新下载副本；本次内容未加入同步队列");
+      }
       if (current.locked) throw new DesktopSyncStoreError("SYNC_ENTITY_READ_ONLY", "该记录已因权限或同步失败锁定为只读");
       const database = await this.open();
       const lookup = database.transaction(["outbox"], "readonly");
