@@ -69,10 +69,11 @@ try {
   workflow("libraryNavigationAndNativeBack");
   workflow("welcomeDirectoryShortcut");
   workflow("aiControlsSingleRow");
+  workflow("compactAiHeader");
   workflow("globalFontSizingAcrossPages");
   adb("shell", "am", "force-stop", packageName);
   workflow("globalFontSizeSurvivesRestart");
-  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
+  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-ai-compact-header", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
     adb("pull", `/sdcard/Android/data/${packageName}/files/${name}.png`, resolve(directory, `${name}.png`));
   }
   const result = { result: "passed", device, packageName, phases, uploadedChapterVersion: chapter.versionNo, offlineModel: llm };

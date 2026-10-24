@@ -311,11 +311,26 @@ public class MobileWorkflowTest {
         clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav"));
     }
 
+    @Test public void compactAiHeader() throws Exception {
+        ensureLauncher(); clickText("离线进入"); chooseBook(); clickText("AI"); find(By.res("ai-prompt"));
+        org.json.JSONObject layout = fontMetrics();
+        org.json.JSONObject header = layout.getJSONObject("aiHeader");
+        double scale = layout.getInt("scale") / 100.0;
+        assertTrue("AI heading text must be compact", header.getDouble("titleFont") <= 12 * header.getDouble("fontScale") * scale + .1);
+        assertTrue("AI close glyph must be compact", header.getDouble("closeFont") <= 14 * scale + .1);
+        assertEquals("The visible close control must be smaller", 32, header.getDouble("closeVisualWidth"), .5);
+        assertTrue("The close control must remain easy to tap", header.getDouble("closeTargetWidth") >= 44);
+        assertMobileLayout();
+        screenshot("android-ai-compact-header");
+        clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav"));
+    }
+
     private org.json.JSONObject fontMetrics() throws Exception {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
         String inspect = "JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, "
-            + "aiOptions: ['ai-task','ai-scope','ai-send-mode'].map(id => { const node=document.getElementById(id); return {id, ...node.getBoundingClientRect().toJSON(), value:node.value}; }), "
+            + "aiOptions: ['ai-task','ai-scope','ai-send-mode'].map(id => { const node=document.getElementById(id); return node ? {id, ...node.getBoundingClientRect().toJSON(), value:node.value} : null; }), "
+            + "aiHeader: (()=>{const title=document.querySelector('.ai-heading-title strong');const button=document.querySelector('#ai-panel-toggle');if(!title || !button)return null;const style=getComputedStyle(button,'::before');const width=button.getBoundingClientRect().width;return {titleFont:parseFloat(getComputedStyle(title).fontSize),fontScale:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ai-font-scale')) || 1,closeFont:parseFloat(getComputedStyle(button).fontSize),closeVisualWidth:width-parseFloat(style.left)-parseFloat(style.right),closeTargetWidth:width};})(), "
             + "presetCount: document.querySelectorAll('#app-font-size input[type=radio]').length, checkedPresetCount: document.querySelectorAll('#app-font-size input:checked').length, selectedPreset: document.querySelector('#app-font-size input:checked')?.value, percentageControls: Boolean(document.querySelector('#app-font-size input[type=range]')) || /[%％]/u.test(document.querySelector('.app-font-settings')?.textContent ?? ''), "
             + "samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), "
             + "editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')), "
