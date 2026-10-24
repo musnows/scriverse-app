@@ -54,8 +54,23 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
   let directoryNext = null;
   sheet.append(header, commands);
   document.body.append(sheet);
+  const welcomeDirectory = element("button", "ghost-button", "查看目录");
+  welcomeDirectory.id = "welcome-directory-button";
+  welcomeDirectory.type = "button";
+  welcomeDirectory.hidden = true;
+  welcomeDirectory.setAttribute("aria-haspopup", "dialog");
+  welcomeDirectory.setAttribute("aria-expanded", "false");
+  welcomeDirectory.setAttribute("aria-controls", sheet.id);
+  welcomeDirectory.addEventListener("click", () => openSheet("directory"));
+  const welcomeNewChapter = document.querySelector("#welcome-new-work");
+  if (welcomeNewChapter) {
+    const actions = element("div", "mobile-welcome-actions");
+    welcomeNewChapter.before(actions);
+    actions.append(welcomeNewChapter, welcomeDirectory);
+  }
   sheet.addEventListener("close", () => {
     if (directoryTree && directoryHome) { directoryHome.insertBefore(directoryTree, directoryNext?.parentElement === directoryHome ? directoryNext : null); directoryTree = null; }
+    welcomeDirectory.setAttribute("aria-expanded", "false");
  buttons.get("prose").setAttribute("aria-expanded", "false"); buttons.get("library").setAttribute("aria-expanded", "false"); buttons.get("more").setAttribute("aria-expanded", "false"); });
   sheet.addEventListener("click", (event) => { if (event.target === sheet) { const rect = sheet.getBoundingClientRect(); if (event.clientY < rect.top || event.clientY > rect.bottom || event.clientX < rect.left || event.clientX > rect.right) sheet.close(); } });
 
@@ -115,6 +130,7 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
       sourceCommand("#background-task-button", "后台任务");
       command("切换工作区", requestSwitch, { detail: "选择 Server，或主动离线进入", kind: "shelf" });
     }
+    welcomeDirectory.setAttribute("aria-expanded", String(kind === "directory"));
     buttons.get(kind === "directory" ? "prose" : kind).setAttribute("aria-expanded", "true");
     sheet.showModal();
     close.focus();
@@ -160,6 +176,8 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
   function updateNavigation() {
     const route = new URLSearchParams(location.hash.slice(1));
     const hasWork = Boolean(route.get("work"));
+    welcomeDirectory.hidden = !hasWork;
+    welcomeDirectory.disabled = !hasWork;
     const aiVisible = app.classList.contains("ai-workspace-mode");
     if (aiVisible !== aiWorkspaceVisible) { aiWorkspaceVisible = aiVisible; onAiWorkspaceChange(aiVisible); }
     for (const key of ["prose", "library", "ai"]) buttons.get(key).disabled = !hasWork;

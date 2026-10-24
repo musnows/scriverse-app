@@ -6,6 +6,8 @@
 .scriverse-mobile-app .primary-button, .scriverse-mobile-app .ghost-button, .scriverse-mobile-app .danger-button { border-radius: 10px; }
 .scriverse-mobile-app .vditor-editor-host .vditor-reset { font-family: var(--font-latin), var(--font-cjk), sans-serif; }
 .mobile-bottom-nav, .mobile-connection-chip { display: none; }
+.scriverse-mobile-app .mobile-welcome-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.scriverse-mobile-app .mobile-welcome-actions > button { min-width: 0; min-height: 44px; padding: 12px 20px; white-space: normal; }
 .mobile-command-sheet { width: min(620px, calc(100% - 24px)); max-height: min(84dvh, 760px); margin: auto auto 12px; padding: 0; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
 .mobile-command-sheet::backdrop { background: #15251f70; backdrop-filter: blur(5px); }
 .mobile-sheet-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 22px 16px; }

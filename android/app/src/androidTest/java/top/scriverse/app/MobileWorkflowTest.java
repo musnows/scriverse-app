@@ -271,6 +271,28 @@ public class MobileWorkflowTest {
         assertTrue("Character filters must start collapsed", !device.hasObject(By.res("character-filter-panel")));
     }
 
+    @Test public void welcomeDirectoryShortcut() throws Exception {
+        ensureLauncher(); clickText("离线进入"); chooseBook();
+        assertTrue("The welcome directory shortcut must work offline", find(By.res("welcome-directory-button")).isEnabled());
+        Rect create = find(By.res("welcome-new-work")).getVisibleBounds();
+        Rect browse = find(By.res("welcome-directory-button")).getVisibleBounds();
+        assertTrue("The directory shortcut must be to the right of new chapter", browse.left >= create.right);
+        assertEquals("Welcome actions must align on one row", create.top, browse.top);
+        assertMobileLayout();
+        screenshot("android-welcome-directory");
+        clickId("welcome-directory-button"); find(By.text("正文目录"));
+        screenshot("android-welcome-directory-open");
+        device.pressBack();
+        assertTrue("Native back did not close the directory", device.wait(Until.gone(By.res("mobile-command-sheet").pkg(packageName)), 5000));
+        clickId("welcome-directory-button"); find(By.text("正文目录"));
+        if (!device.hasObject(By.textStartsWith("第一章 · 风起星港").pkg(packageName))) find(By.textContains("第一卷 · 远航")).click();
+        find(By.textStartsWith("第一章 · 风起星港")).click(); find(By.res("chapter-content"));
+        assertTrue("Selecting a chapter must close the directory", device.wait(Until.gone(By.res("mobile-command-sheet").pkg(packageName)), 5000));
+        chooseFirstChapter();
+        clickText("书架"); find(By.desc("打开 星海纪事"));
+        assertFalse("The shortcut must not appear outside a work", device.hasObject(By.res("welcome-directory-button").pkg(packageName)));
+    }
+
     private org.json.JSONObject fontMetrics() throws Exception {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
@@ -280,7 +302,7 @@ public class MobileWorkflowTest {
             + "editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')), "
             + "toastCoversNavigation: (()=>{const nav=document.querySelector('#mobile-bottom-nav')?.getBoundingClientRect();const toast=document.querySelector('#toast-region')?.getBoundingClientRect();return Boolean(nav?.height>0&&toast?.height>0&&toast.bottom>nav.top+1&&toast.top<nav.bottom);})(), "
             + "persistentBrand: [...document.querySelectorAll('.topbar .brand-block,.auth-brand,.launcher-brand > img,.mobile-local-ai .module-header .eyebrow')].some(node => node.getBoundingClientRect().height > 0), "
-            + "outsideButtons: [...document.querySelectorAll('.module-header-actions button,.module-header-actions a,.editor-actions button,.entity-editor-mode-actions button,.character-editor-header-actions button,.ai-heading button,.card-actions button,.app-font-option')].filter(node => { const rect=node.getBoundingClientRect(); return rect.width>0 && rect.height>0 && getComputedStyle(node).visibility!=='hidden' && (rect.left < -1 || rect.right > innerWidth+1); }).map(node=>node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0,40)) })";
+            + "outsideButtons: [...document.querySelectorAll('.module-header-actions button,.module-header-actions a,.editor-actions button,.entity-editor-mode-actions button,.character-editor-header-actions button,.ai-heading button,.card-actions button,.app-font-option,.mobile-welcome-actions button')].filter(node => { const rect=node.getBoundingClientRect(); return rect.width>0 && rect.height>0 && getComputedStyle(node).visibility!=='hidden' && (rect.left < -1 || rect.right > innerWidth+1); }).map(node=>node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0,40)) })";
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
                 if (!(activity instanceof MainActivity)) continue;
