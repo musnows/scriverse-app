@@ -117,6 +117,18 @@ public class NativeWorkspacePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setGraphPresentation(PluginCall call) {
+        Boolean active = call.getBoolean("active");
+        if (active == null) { call.reject("无效的图谱显示状态", "GRAPH_PRESENTATION_INVALID"); return; }
+        getActivity().runOnUiThread(() -> {
+            try {
+                ((MainActivity) getActivity()).setGraphPresentation(active);
+                call.resolve();
+            } catch (RuntimeException error) { call.reject("无法切换图谱横屏显示", "GRAPH_PRESENTATION_UNAVAILABLE"); }
+        });
+    }
+
+    @PluginMethod
     public void configure(PluginCall call) {
         try {
             String id = call.getString("profileId", "");

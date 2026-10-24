@@ -66,6 +66,12 @@ public class NativeWorkspaceTest {
         origin = InstrumentationRegistry.getArguments().getString("serverOrigin", "http://127.0.0.1:24400");
         authOrigin = InstrumentationRegistry.getArguments().getString("authOrigin", "http://127.0.0.1:24500");
     }
+    @Test public void graphPresentationRejectsInvalidStates() throws Exception {
+        for (JSObject input : new JSObject[] { new JSObject(), new JSObject().put("active", "true"), new JSObject().put("active", 1) }) {
+            Call call = new Call(input); plugin.setGraphPresentation(call); call.await();
+            assertEquals("GRAPH_PRESENTATION_INVALID", call.errorCode);
+        }
+    }
     @Test public void secretsAreEncryptedAndBoundToTheirNames() throws Exception {
         String id = UUID.randomUUID().toString(); String key = "ai:" + id;
         writeSecret(key, "isolated-test-api-key");
