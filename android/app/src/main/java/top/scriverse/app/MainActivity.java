@@ -19,6 +19,22 @@ public class MainActivity extends BridgeActivity {
     private int graphPreviousOrientation;
     private int graphPreviousBarsBehavior;
     private int graphPreviousVisibleBars;
+    private boolean graphBarsRestoring;
+    private final android.view.ViewTreeObserver.OnGlobalLayoutListener graphBarRestorationObserver = this::checkGraphBarsRestored;
+
+    private int visibleSystemBars() {
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(getWindow().getDecorView());
+        if (insets == null) return -1;
+        int visible = 0;
+        for (int type : new int[] { WindowInsetsCompat.Type.statusBars(), WindowInsetsCompat.Type.navigationBars(), WindowInsetsCompat.Type.captionBar() }) {
+            if (insets.isVisible(type)) visible |= type;
+        }
+        return visible;
+    }
+
+    private void checkGraphBarsRestored() {
+        if (!graphPresentationActive && graphBarsRestoring && visibleSystemBars() == graphPreviousVisibleBars) graphBarsRestoring = false;
+    }
 
     void setGraphPresentation(boolean active) {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
@@ -26,17 +42,18 @@ public class MainActivity extends BridgeActivity {
             if (!graphPresentationActive) {
                 graphPreviousOrientation = getRequestedOrientation();
                 graphPreviousBarsBehavior = controller.getSystemBarsBehavior();
-                WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(getWindow().getDecorView());
-                graphPreviousVisibleBars = 0;
-                for (int type : new int[] { WindowInsetsCompat.Type.statusBars(), WindowInsetsCompat.Type.navigationBars(), WindowInsetsCompat.Type.captionBar() }) {
-                    if (insets == null || insets.isVisible(type)) graphPreviousVisibleBars |= type;
+                if (!graphBarsRestoring) {
+                    int visible = visibleSystemBars();
+                    graphPreviousVisibleBars = visible < 0 ? WindowInsetsCompat.Type.systemBars() : visible;
                 }
+                graphBarsRestoring = false;
                 graphPresentationActive = true;
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
             }
             hideGraphSystemBars();
         } else if (graphPresentationActive) {
             graphPresentationActive = false;
+            graphBarsRestoring = true;
             setRequestedOrientation(graphPreviousOrientation);
             controller.setSystemBarsBehavior(graphPreviousBarsBehavior);
             if (graphPreviousVisibleBars != 0) controller.show(graphPreviousVisibleBars);
@@ -65,6 +82,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        getWindow().getDecorView().getViewTreeObserver().removeOnGlobalLayoutListener(graphBarRestorationObserver);
         setGraphPresentation(false);
         super.onDestroy();
     }
@@ -73,6 +91,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeWorkspacePlugin.class);
         super.onCreate(savedInstanceState);
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalLayoutListener(graphBarRestorationObserver);
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {

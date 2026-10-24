@@ -92,6 +92,16 @@ public class GraphPresentationTest {
         assertEquals(behavior, (int) ui(() -> WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView()).getSystemBarsBehavior()));
     }
 
+    @Test public void rapidReentryRestoresSystemBars() {
+        int before = visibleBars();
+        ui(() -> { activity.setGraphPresentation(true); return null; });
+        await("Landscape preparation failed", () -> device.getDisplayWidth() > device.getDisplayHeight());
+        await("System bars did not hide", () -> visibleBars() == 0);
+        ui(() -> { activity.setGraphPresentation(false); activity.setGraphPresentation(true); activity.setGraphPresentation(false); return null; });
+        await("Rapid exit must restore portrait", () -> device.getDisplayHeight() > device.getDisplayWidth());
+        await("Rapid exit must restore the original system bars", () -> visibleBars() == before);
+    }
+
     @Test public void navigationLeavesLandscapePresentation() {
         ui(() -> { activity.setGraphPresentation(true); return null; });
         await("Landscape preparation failed", () -> device.getDisplayWidth() > device.getDisplayHeight());
