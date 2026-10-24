@@ -48,3 +48,13 @@ test("every app surface and the offline module graph share a content cache versi
   const font = await readFile(new URL("../dist/public/fonts/scriverse-mono-latin.woff2", import.meta.url));
   assert.equal(font.subarray(0, 4).toString("ascii"), "wOF2");
 });
+
+test("the app security policy is active before appearance scripts execute on every entry page", async () => {
+  for (const path of ["index.html", "workspace.html", "local-ai/index.html"]) {
+    const html = await readFile(new URL(`../dist/public/${path}`, import.meta.url), "utf8");
+    const policy = html.indexOf('http-equiv="Content-Security-Policy"');
+    const script = html.indexOf('src="/app-appearance.js');
+    assert.ok(policy >= 0 && script > policy, path);
+    assert.match(html, /script-src 'self'/u);
+  }
+});

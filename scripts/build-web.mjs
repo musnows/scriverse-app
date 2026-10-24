@@ -28,7 +28,7 @@ await build({ entryPoints: ["src/local-ai-store.js"], outfile: join(target, "loc
 await build({ entryPoints: ["src/app-appearance.js"], outfile: join(target, "app-appearance.js"), bundle: true, format: "iife", target: "es2022" });
 let workspace = readFileSync(join(target, "workspace.html"), "utf8");
 workspace = workspace.replace("<head>", `<head>\n    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; img-src 'self' data: blob:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self'">\n    <script src="/native-bootstrap.js?v=20261023-native-workspace-v1"></script>`);
-workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本").replace("<head>", '<head>\n    <script src="/app-appearance.js?v=20261024-app-font-v1"></script>').replace("</head>", '    <link rel="stylesheet" href="/mobile-ui.css?v=20261023-phone-navigation-v1">\n    <link rel="stylesheet" href="/app-appearance.css?v=20261024-app-font-v1">\n  </head>');
+workspace = workspace.replaceAll("Desktop 安全副本", "手机本地副本").replace('    <script src="/native-bootstrap.js', '    <script src="/app-appearance.js?v=20261024-app-font-v1"></script>\n    <script src="/native-bootstrap.js').replace("</head>", '    <link rel="stylesheet" href="/mobile-ui.css?v=20261023-phone-navigation-v1">\n    <link rel="stylesheet" href="/app-appearance.css?v=20261024-app-font-v1">\n  </head>');
 writeFileSync(join(target, "workspace.html"), workspace);
 const bundledAppPath = join(target, "app.js");
 let bundledApp = readFileSync(bundledAppPath, "utf8");
