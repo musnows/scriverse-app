@@ -191,6 +191,9 @@
   .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit > :is(.record-card-edit, .record-pin-button, .record-favorite-button) { position: static; flex: 0 0 44px; width: 44px; min-height: 44px; padding: 10px; margin: 0; }
   .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit > button:first-of-type { margin-left: auto; }
   .scriverse-mobile-app .relationship-map-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .scriverse-mobile-app .relationship-map-toolbar > div:first-child { flex: 0 0 auto; }
+  .scriverse-mobile-app .relationship-map-toolbar .relationship-node-search:not(.is-galaxy) { flex: 0 0 auto; }
+  .scriverse-mobile-app .relationship-map-toolbar .relationship-map-actions { flex: 0 0 auto; overflow-x: visible; }
   .scriverse-mobile-app .relationship-map-actions { display: flex; flex-wrap: wrap; width: 100%; min-width: 0; gap: 6px; }
   .scriverse-mobile-app .relationship-map-actions button { flex: 1 1 80px; min-width: 0; max-width: 100%; min-height: 44px; white-space: normal; }
   .scriverse-mobile-app .relationship-map-toolbar .relationship-node-search { width: 100%; min-width: 0; max-width: none; }

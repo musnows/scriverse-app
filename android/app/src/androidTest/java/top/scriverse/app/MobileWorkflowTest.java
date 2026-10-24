@@ -434,4 +434,20 @@ public class MobileWorkflowTest {
         screenshot("android-font-settings-default");
         device.pressBack(); find(By.res("add-server"));
     }
+
+    @Test public void portraitRelationshipPreview() throws Exception {
+        ensureLauncher(); clickText("离线进入"); chooseBook(); clickText("设定库"); clickText("关系");
+        find(By.desc("放大关系图")).click();
+        assertTrue("The ordinary relationship preview must stay in portrait", device.getDisplayHeight() > device.getDisplayWidth());
+        UiObject2 dialog = find(By.res("relationship-map-dialog"));
+        for (BySelector selector : new BySelector[] { By.text("适配"), By.text("重置布局"), By.desc("全屏银河图") }) {
+            UiObject2 control = dialog.findObject(selector);
+            assertNotNull("A portrait graph action is clipped", control);
+            Rect bounds = control.getVisibleBounds();
+            assertTrue("A portrait graph action is outside the screen", bounds.width() > 0 && bounds.height() > 0 && bounds.left >= 0 && bounds.right <= device.getDisplayWidth());
+        }
+        assertNotNull("Portrait graph nodes are missing", dialog.findObject(By.descStartsWith("林舟，")));
+        screenshot("android-map-portrait");
+        clickId("relationship-map-close");
+    }
 }
