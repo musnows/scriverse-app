@@ -275,11 +275,12 @@ public class MobileWorkflowTest {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
         String inspect = "JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, "
+            + "presetCount: document.querySelectorAll('#app-font-size input[type=radio]').length, checkedPresetCount: document.querySelectorAll('#app-font-size input:checked').length, selectedPreset: document.querySelector('#app-font-size input:checked')?.value, percentageControls: Boolean(document.querySelector('#app-font-size input[type=range]')) || /[%％]/u.test(document.querySelector('.app-font-settings')?.textContent ?? ''), "
             + "samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), "
             + "editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')), "
             + "toastCoversNavigation: (()=>{const nav=document.querySelector('#mobile-bottom-nav')?.getBoundingClientRect();const toast=document.querySelector('#toast-region')?.getBoundingClientRect();return Boolean(nav?.height>0&&toast?.height>0&&toast.bottom>nav.top+1&&toast.top<nav.bottom);})(), "
             + "persistentBrand: [...document.querySelectorAll('.topbar .brand-block,.auth-brand,.launcher-brand > img,.mobile-local-ai .module-header .eyebrow')].some(node => node.getBoundingClientRect().height > 0), "
-            + "outsideButtons: [...document.querySelectorAll('.module-header-actions button,.module-header-actions a,.editor-actions button,.entity-editor-mode-actions button,.character-editor-header-actions button,.ai-heading button,.card-actions button,.app-font-controls button')].filter(node => { const rect=node.getBoundingClientRect(); return rect.width>0 && rect.height>0 && getComputedStyle(node).visibility!=='hidden' && (rect.left < -1 || rect.right > innerWidth+1); }).map(node=>node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0,40)) })";
+            + "outsideButtons: [...document.querySelectorAll('.module-header-actions button,.module-header-actions a,.editor-actions button,.entity-editor-mode-actions button,.character-editor-header-actions button,.ai-heading button,.card-actions button,.app-font-option')].filter(node => { const rect=node.getBoundingClientRect(); return rect.width>0 && rect.height>0 && getComputedStyle(node).visibility!=='hidden' && (rect.left < -1 || rect.right > innerWidth+1); }).map(node=>node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0,40)) })";
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
                 if (!(activity instanceof MainActivity)) continue;
@@ -298,8 +299,9 @@ public class MobileWorkflowTest {
     }
 
     private void largerFont() throws Exception {
-        for (int index = 0; index < 3; index++) clickId("app-font-larger");
-        assertTrue(device.wait(Until.hasObject(By.text("120%")), 5000));
+        clickId("app-font-size-120");
+        assertTrue(device.wait(Until.hasObject(By.res("app-font-size-value").text("超大")), 5000));
+        assertEquals("The selected font preset is not checked", 120, fontMetrics().getInt("selectedPreset"));
     }
 
     private void workspaceFontSettings() throws Exception { clickText("更多"); find(By.textStartsWith("显示与字号")).click(); find(By.res("app-font-size")); }
@@ -316,7 +318,16 @@ public class MobileWorkflowTest {
         org.json.JSONObject small = fontMetrics();
         assertEquals(90, small.getInt("scale"));
         assertEquals(14.4, small.getJSONObject("samples").getDouble(".app-font-preview p"), .15);
-        largerFont();
+        assertEquals("Font choices must be fixed presets", 5, small.getInt("presetCount"));
+        assertFalse("Font settings must not expose percentage controls", small.getBoolean("percentageControls"));
+        for (int value : new int[] { 80, 90, 100, 110, 120 }) {
+            clickId("app-font-size-" + value);
+            org.json.JSONObject selected = fontMetrics();
+            assertEquals(value, selected.getInt("scale"));
+            assertEquals("Font presets must have a single selection", 1, selected.getInt("checkedPresetCount"));
+            assertEquals("The requested preset is not checked", value, selected.getInt("selectedPreset"));
+            assertMobileLayout();
+        }
         org.json.JSONObject large = fontMetrics();
         assertMobileLayout();
         assertEquals(small.getJSONObject("samples").getDouble("#server-list-title") * 4 / 3, large.getJSONObject("samples").getDouble("#server-list-title"), .15);
@@ -360,8 +371,10 @@ public class MobileWorkflowTest {
     @Test public void globalFontSizeSurvivesRestart() throws Exception {
         ensureLauncher(); clickId("app-more-button");
         assertEquals("Global typography did not survive process restart", 120, fontMetrics().getInt("scale"));
+        assertEquals("The saved preset is not selected after restart", 120, fontMetrics().getInt("selectedPreset"));
         clickId("app-font-reset");
         assertEquals(90, fontMetrics().getInt("scale"));
+        assertEquals("Reset must select the standard preset", 90, fontMetrics().getInt("selectedPreset"));
         screenshot("android-font-settings-default");
         device.pressBack(); find(By.res("add-server"));
     }

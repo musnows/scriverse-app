@@ -15,9 +15,14 @@
 .app-font-preview { display: grid; gap: 8px; margin: 20px 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft, var(--soft)); overflow-wrap: anywhere; }
 .app-font-preview strong { font-size: 20px; }
 .app-font-preview p { color: var(--ink); font-size: 16px; }
-.app-font-controls { display: flex; align-items: center; gap: 12px; }
-.app-font-controls button { flex: 0 0 44px; width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface, var(--panel)); font: inherit; font-size: 16px; }
-.app-font-controls input { flex: 1 1 0; min-width: 0; width: 0; min-height: 44px; margin: 0; padding: 0; accent-color: var(--accent); }
+.app-font-controls { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; min-width: 0; margin: 0; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft, var(--soft)); }
+.app-font-option { position: relative; min-width: 0; }
+.app-font-option input { position: absolute; inset: 0; appearance: none; width: 100%; height: 100%; min-height: 44px; margin: 0; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
+.app-font-option span { position: relative; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 6px 2px; border-radius: 8px; color: var(--muted); font-size: 13px; line-height: 1.4; white-space: nowrap; pointer-events: none; }
+.app-font-option input:checked + span { color: #fff; background: var(--accent); }
+@media (prefers-color-scheme: dark) { .app-launcher .app-font-option input:checked + span { color: #17231f; } }
+.app-font-option input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app-settings-dialog .app-font-option input:focus-visible { outline: none; }
 .app-font-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 14px; }
 .app-settings-text-button { min-height: 44px; padding: 6px 0; border: 0; color: var(--accent); background: transparent; font: inherit; font-size: 13px; }
 .app-font-settings .app-font-status { margin-top: 8px; font-size: 12px; }

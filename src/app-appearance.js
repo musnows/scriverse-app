@@ -1,6 +1,7 @@
 import { APP_APPEARANCE_KEY, APP_FONT_SIZES, DEFAULT_APP_FONT_SIZE, readAppFontSize, writeAppFontSize, scaleTypographyValue } from "./app-appearance-settings.js";
 
 const root = document.documentElement;
+const fontSizeLabels = { 80: "小号", 90: "标准", 100: "大号", 110: "特大", 120: "超大" };
 let fontSize = readAppFontSize(localStorage);
 const processed = new WeakSet();
 let pendingStyles = false;
@@ -36,14 +37,9 @@ function applyFontSize(value) {
   fontSize = value;
   root.style.setProperty("--app-font-scale", String(value / 100));
   root.dataset.appFontSize = String(value);
-  const input = document.querySelector("#app-font-size");
-  if (input) input.value = String(value);
+  for (const input of document.querySelectorAll("#app-font-size input")) input.checked = Number(input.value) === value;
   const output = document.querySelector("#app-font-size-value");
-  if (output) output.textContent = `${value}%${value === DEFAULT_APP_FONT_SIZE ? " · 默认" : ""}`;
-  for (const [id, disabled] of [["app-font-smaller", value === APP_FONT_SIZES[0]], ["app-font-larger", value === APP_FONT_SIZES.at(-1)]]) {
-    const button = document.getElementById(id);
-    if (button) button.disabled = disabled;
-  }
+  if (output) output.textContent = `${fontSizeLabels[value]}${value === DEFAULT_APP_FONT_SIZE ? " · 默认" : ""}`;
   requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
 }
 
@@ -85,19 +81,19 @@ function createDialog() {
   const fontTitle = element("h3", "", "全局 App 字号"); fontTitle.id = "app-font-title";
   const description = element("p", "", "同时调整界面、正文、设定库、AI 和本机设置。原有的独立字号设置仍然有效。");
   const preview = element("div", "app-font-preview"); preview.append(element("strong", "", "让故事继续"), element("p", "", "正文与设定库 · Scriverse 123"));
-  const controls = element("div", "app-font-controls");
-  const smaller = element("button", "", "A−"); smaller.id = "app-font-smaller"; smaller.type = "button"; smaller.setAttribute("aria-label", "缩小全局字号");
-  const larger = element("button", "", "A＋"); larger.id = "app-font-larger"; larger.type = "button"; larger.setAttribute("aria-label", "放大全局字号");
-  const range = element("input", ""); range.id = "app-font-size"; range.type = "range"; range.min = "80"; range.max = "120"; range.step = "10"; range.setAttribute("aria-label", "全局 App 字号");
-  range.addEventListener("input", () => changeFontSize(Number(range.value)));
-  smaller.addEventListener("click", () => changeFontSize(APP_FONT_SIZES[Math.max(0, APP_FONT_SIZES.indexOf(fontSize) - 1)]));
-  larger.addEventListener("click", () => changeFontSize(APP_FONT_SIZES[Math.min(APP_FONT_SIZES.length - 1, APP_FONT_SIZES.indexOf(fontSize) + 1)]));
-  controls.append(smaller, range, larger);
+  const controls = element("fieldset", "app-font-controls"); controls.id = "app-font-size"; controls.setAttribute("aria-label", "全局 App 字号档位");
+  for (const value of APP_FONT_SIZES) {
+    const option = element("label", "app-font-option");
+    const radio = element("input", ""); radio.id = `app-font-size-${value}`; radio.type = "radio"; radio.name = "app-font-preset"; radio.value = String(value);
+    radio.addEventListener("change", () => { if (radio.checked) changeFontSize(value); });
+    option.append(radio, element("span", "", fontSizeLabels[value]));
+    controls.append(option);
+  }
   const meta = element("div", "app-font-meta");
-  const output = element("output", ""); output.id = "app-font-size-value"; output.setAttribute("for", range.id);
+  const output = element("output", ""); output.id = "app-font-size-value"; output.setAttribute("for", APP_FONT_SIZES.map((value) => `app-font-size-${value}`).join(" "));
   const reset = element("button", "app-settings-text-button", "恢复默认"); reset.id = "app-font-reset"; reset.type = "button"; reset.addEventListener("click", () => changeFontSize(DEFAULT_APP_FONT_SIZE));
   meta.append(output, reset);
-  const status = element("p", "app-font-status", "默认 90%，比原字号小一级；设置保存在这台设备上。"); status.id = "app-font-save-status"; status.setAttribute("role", "status");
+  const status = element("p", "app-font-status", "默认使用标准档，比原字号小一级；设置保存在这台设备上。"); status.id = "app-font-save-status"; status.setAttribute("role", "status");
   section.append(fontTitle, description, preview, controls, meta, status);
   let ai = document.querySelector("#local-ai-open");
   if (!ai) {
@@ -113,7 +109,7 @@ function createDialog() {
   return dialog;
 }
 
-function open() { createDialog().showModal(); document.querySelector("#app-font-size")?.focus(); }
+function open() { createDialog().showModal(); document.querySelector("#app-font-size input:checked")?.focus(); }
 applyFontSize(fontSize);
 document.addEventListener("load", (event) => { if (event.target instanceof HTMLLinkElement) scheduleStyles(); }, true);
 new MutationObserver((records) => { if (records.some((record) => [...record.addedNodes].some((node) => node.nodeType === 1 && (node.matches?.("style, link[rel=stylesheet]") || node.querySelector?.("style, link[rel=stylesheet]"))))) scheduleStyles(); }).observe(root, { childList: true, subtree: true });
