@@ -95,6 +95,7 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
       sourceCommand("#writing-progress-button", "写作目标");
     } else {
       const hasWork = Boolean(new URLSearchParams(location.hash.slice(1)).get("work"));
+      command("显示与字号", () => globalThis.scriverseAppAppearance?.open(), { detail: "全局调整 App 字体大小", kind: "more" });
       sourceCommand("#desktop-sync-status-button", "离线与同步", "下载作品、上传修改与处理版本冲突", "prose");
       sourceCommand("#mobile-local-ai-button", "本机 AI", "配置手机或局域网中的模型 endpoint", "ai");
       if (hasWork) sourceCommand("#top-search-button", "全局搜索");

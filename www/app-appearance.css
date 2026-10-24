@@ -1,0 +1,26 @@
+:root { --app-font-scale: .9; }
+.app-launcher { font-size: 16px; }
+.app-settings-dialog { width: min(480px, calc(100% - 24px)); max-width: calc(100% - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 20px; background: var(--panel, var(--surface)); color: var(--ink); }
+.app-settings-dialog::backdrop { background: #15251f70; }
+.app-settings-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px; border-bottom: 1px solid var(--line); }
+.app-settings-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.app-settings-brand img { width: 36px; height: 36px; border-radius: 9px; }
+.app-settings-brand h2 { margin: 0; font-size: 20px; }
+.app-settings-brand small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.app-settings-close { flex: 0 0 44px; width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: var(--surface-soft, var(--soft)); font: inherit; font-size: 24px; }
+.app-settings-content { display: grid; gap: 20px; padding: 20px; }
+.app-font-settings { min-width: 0; }
+.app-font-settings h3 { margin: 0 0 8px; font-size: 17px; }
+.app-font-settings p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.app-font-preview { display: grid; gap: 8px; margin: 20px 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft, var(--soft)); overflow-wrap: anywhere; }
+.app-font-preview strong { font-size: 20px; }
+.app-font-preview p { color: var(--ink); font-size: 16px; }
+.app-font-controls { display: flex; align-items: center; gap: 12px; }
+.app-font-controls button { flex: 0 0 44px; width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface, var(--panel)); font: inherit; font-size: 16px; }
+.app-font-controls input { flex: 1 1 0; min-width: 0; width: 0; min-height: 44px; margin: 0; padding: 0; accent-color: var(--accent); }
+.app-font-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 14px; }
+.app-settings-text-button { min-height: 44px; padding: 6px 0; border: 0; color: var(--accent); background: transparent; font: inherit; font-size: 13px; }
+.app-font-settings .app-font-status { margin-top: 8px; font-size: 12px; }
+.app-settings-action { width: 100%; min-height: 48px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface-soft, var(--soft)); text-align: left; font: inherit; font-size: 14px; }
+.app-settings-dialog button:disabled { opacity: .4; }
+.app-settings-dialog :is(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

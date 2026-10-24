@@ -188,7 +188,7 @@ public class MobileWorkflowTest {
         return find(By.text(value));
     }
     @Test public void configurePhoneModel() throws Exception {
-        ensureLauncher(); clickId("local-ai-open");
+        ensureLauncher(); clickId("app-more-button"); clickId("local-ai-open");
         find(By.res("local-ai-new-provider"));
         if (!device.hasObject(By.text("Phone Endpoint"))) {
             clickId("local-ai-new-provider");
@@ -256,5 +256,73 @@ public class MobileWorkflowTest {
         find(By.text("角色与人物属性"));
         screenshot("android-characters");
         assertTrue("Character filters must start collapsed", !device.hasObject(By.res("character-filter-panel")));
+    }
+
+    private org.json.JSONObject fontMetrics() throws Exception {
+        java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
+                if (!(activity instanceof MainActivity)) continue;
+                ((MainActivity) activity).getBridge().getWebView().evaluateJavascript("JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')) })", value -> { result.set(value); observed.countDown(); });
+            }
+        });
+        assertTrue("Could not inspect native typography", observed.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        return new org.json.JSONObject((String) new org.json.JSONTokener(result.get()).nextValue());
+    }
+
+    private void largerFont() throws Exception {
+        for (int index = 0; index < 3; index++) clickId("app-font-larger");
+        assertTrue(device.wait(Until.hasObject(By.text("120%")), 5000));
+    }
+
+    private void workspaceFontSettings() throws Exception { clickText("更多"); find(By.textStartsWith("显示与字号")).click(); find(By.res("app-font-size")); }
+
+    @Test public void globalFontSizingAcrossPages() throws Exception {
+        ensureLauncher(); clickId("app-more-button"); clickId("app-font-reset");
+        org.json.JSONObject small = fontMetrics();
+        assertEquals(90, small.getInt("scale"));
+        assertEquals(14.4, small.getJSONObject("samples").getDouble(".app-font-preview p"), .15);
+        largerFont();
+        org.json.JSONObject large = fontMetrics();
+        assertEquals(small.getJSONObject("samples").getDouble("#server-list-title") * 4 / 3, large.getJSONObject("samples").getDouble("#server-list-title"), .15);
+        assertEquals(19.2, large.getJSONObject("samples").getDouble(".app-font-preview p"), .15);
+        clickId("local-ai-open"); find(By.res("local-ai-new-provider"));
+        assertEquals(120, fontMetrics().getInt("scale"));
+        clickId("app-more-button"); clickId("app-font-reset"); device.pressBack();
+        double localSmall = fontMetrics().getJSONObject("samples").getDouble(".module-header h1");
+        clickId("app-more-button"); largerFont(); device.pressBack();
+        assertEquals(localSmall * 4 / 3, fontMetrics().getJSONObject("samples").getDouble(".module-header h1"), .15);
+        clickText("返回工作区"); find(By.res("add-server"));
+        clickText("离线进入"); chooseBook();
+        clickText("设定库"); clickText("角色"); find(By.text("角色与人物属性"));
+        workspaceFontSettings(); clickId("app-font-reset"); device.pressBack();
+        double moduleSmall = fontMetrics().getJSONObject("samples").getDouble(".module-header h1");
+        workspaceFontSettings(); largerFont(); device.pressBack();
+        assertEquals(moduleSmall * 4 / 3, fontMetrics().getJSONObject("samples").getDouble(".module-header h1"), .15);
+        chooseFirstChapter();
+        org.json.JSONObject prose = fontMetrics();
+        assertEquals(prose.getDouble("editorBase") * 1.2, prose.getJSONObject("samples").getDouble("#chapter-content"), .15);
+        clickText("设定库"); clickText("设定");
+        find(By.desc("查看设定 潮汐引擎")).click(); clickId("setting-editor-edit");
+        find(By.textContains("冷却时间为三小时"));
+        assertEquals(19.2, fontMetrics().getJSONObject("samples").getDouble(".vditor-reset"), .15);
+        screenshot("android-font-markdown-large");
+        clickId("setting-editor-back");
+        clickText("AI"); find(By.res("ai-prompt"));
+        assertEquals(19.2, fontMetrics().getJSONObject("samples").getDouble("#ai-prompt"), .15);
+        device.pressBack();
+        ensureLauncher(); clickId("app-more-button");
+        assertEquals(120, fontMetrics().getInt("scale"));
+        screenshot("android-font-settings-large");
+    }
+
+    @Test public void globalFontSizeSurvivesRestart() throws Exception {
+        ensureLauncher(); clickId("app-more-button");
+        assertEquals("Global typography did not survive process restart", 120, fontMetrics().getInt("scale"));
+        clickId("app-font-reset");
+        assertEquals(90, fontMetrics().getInt("scale"));
+        screenshot("android-font-settings-default");
+        device.pressBack(); find(By.res("add-server"));
     }
 }
