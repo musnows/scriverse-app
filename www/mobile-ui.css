@@ -203,6 +203,13 @@
   .scriverse-mobile-app .dialog-actions > button { flex: 1 1 112px; }
   .scriverse-mobile-app .character-editor-header-actions > :is(.primary-button, .ghost-button) { white-space: normal; }
   .scriverse-mobile-app .setting-editor-header-fields, .scriverse-mobile-app .setting-editor-header-fields > label { min-width: 0; max-width: 100%; }
+  .scriverse-mobile-app .prompt-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .scriverse-mobile-app .prompt-options select { width: 100%; min-width: 0; min-height: 44px; padding: 6px 4px; white-space: nowrap; text-overflow: ellipsis; }
+  .scriverse-mobile-app .prompt-options #ai-task { grid-column: 1; grid-row: 1; }
+  .scriverse-mobile-app .prompt-options #ai-scope { grid-column: 2; grid-row: 1; }
+  .scriverse-mobile-app .prompt-options #ai-send-mode { grid-column: 3; grid-row: 1; }
+  .scriverse-mobile-app .prompt-options:has(#ai-scope.hidden) #ai-task { grid-column: 1 / 3; }
+  .scriverse-mobile-app .prompt-options .ai-roleplay-character { grid-column: 1 / -1; }
   .scriverse-mobile-app .app-shell.ai-workspace-mode .ai-panel.is-conversation-workspace .ai-heading { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; padding: 0 0 10px; }
   .scriverse-mobile-app .ai-heading #ai-panel-toggle { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
   .scriverse-mobile-app .ai-heading-title { min-width: 0; }

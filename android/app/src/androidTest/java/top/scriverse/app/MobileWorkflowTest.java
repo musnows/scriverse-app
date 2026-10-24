@@ -293,10 +293,29 @@ public class MobileWorkflowTest {
         assertFalse("The shortcut must not appear outside a work", device.hasObject(By.res("welcome-directory-button").pkg(packageName)));
     }
 
+    @Test public void aiControlsSingleRow() throws Exception {
+        ensureLauncher(); clickText("离线进入"); chooseBook(); clickText("AI"); find(By.res("ai-prompt"));
+        org.json.JSONArray controls = fontMetrics().getJSONArray("aiOptions");
+        assertEquals(3, controls.length());
+        double top = controls.getJSONObject(0).getDouble("top");
+        double previousRight = -1;
+        for (int index = 0; index < controls.length(); index++) {
+            org.json.JSONObject control = controls.getJSONObject(index);
+            assertEquals("AI composer controls must share one row", top, control.getDouble("top"), .5);
+            assertTrue("AI composer controls overlap", control.getDouble("left") >= previousRight);
+            assertTrue("AI composer controls must remain easy to tap", control.getDouble("height") >= 44);
+            previousRight = control.getDouble("right");
+        }
+        assertMobileLayout();
+        screenshot("android-ai-controls");
+        clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav"));
+    }
+
     private org.json.JSONObject fontMetrics() throws Exception {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
         String inspect = "JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, "
+            + "aiOptions: ['ai-task','ai-scope','ai-send-mode'].map(id => { const node=document.getElementById(id); return {id, ...node.getBoundingClientRect().toJSON(), value:node.value}; }), "
             + "presetCount: document.querySelectorAll('#app-font-size input[type=radio]').length, checkedPresetCount: document.querySelectorAll('#app-font-size input:checked').length, selectedPreset: document.querySelector('#app-font-size input:checked')?.value, percentageControls: Boolean(document.querySelector('#app-font-size input[type=range]')) || /[%％]/u.test(document.querySelector('.app-font-settings')?.textContent ?? ''), "
             + "samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), "
             + "editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')), "
