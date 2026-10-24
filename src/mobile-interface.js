@@ -78,7 +78,7 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
     if (source) command(label, () => source.click(), { source, detail, disabled: source.disabled, kind });
   }
   function openSheet(kind) {
-    title.textContent = kind === "library" ? "设定库" : kind === "directory" ? "正文目录" : "工作台";
+    title.textContent = kind === "library" ? "设定库" : kind === "directory" ? "正文目录" : "更多";
     commands.replaceChildren();
     commands.classList.toggle("is-library", kind === "library");
     commands.classList.remove("is-directory");
@@ -95,6 +95,10 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
       sourceCommand("#writing-progress-button", "写作目标");
     } else {
       const hasWork = Boolean(new URLSearchParams(location.hash.slice(1)).get("work"));
+      const identity = element("div", "mobile-more-identity");
+      const logo = element("img", ""); logo.src = "/icon.svg"; logo.alt = "";
+      const copy = element("div", "mobile-more-identity-copy"); copy.append(element("strong", "", "叙界"), element("small", "", profile.name));
+      identity.append(logo, copy, chip); commands.append(identity);
       command("显示与字号", () => globalThis.scriverseAppAppearance?.open(), { detail: "全局调整 App 字体大小", kind: "more" });
       sourceCommand("#desktop-sync-status-button", "离线与同步", "下载作品、上传修改与处理版本冲突", "prose");
       sourceCommand("#mobile-local-ai-button", "本机 AI", "配置手机或局域网中的模型 endpoint", "ai");
@@ -128,8 +132,10 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
   const chip = element("button", "mobile-connection-chip");
   chip.id = "mobile-connection-chip";
   chip.type = "button";
-  chip.addEventListener("click", () => document.querySelector("#desktop-sync-status-button")?.click());
+  chip.addEventListener("click", () => { if (sheet.open) sheet.close(); document.querySelector("#desktop-sync-status-button")?.click(); });
   document.querySelector(".top-actions")?.prepend(chip);
+  const wideMore = element("button", "app-wide-more", "更多"); wideMore.type = "button"; wideMore.dataset.appSettings = ""; wideMore.setAttribute("aria-haspopup", "dialog"); wideMore.setAttribute("aria-controls", "app-settings-dialog");
+  document.querySelector(".top-actions")?.append(wideMore);
   let status = {};
   try { status = JSON.parse(localStorage.getItem(`scriverse.mobile.offline-summary.${profile.id}`) || "{}"); } catch { /* 首次连接没有缓存状态 */ }
   function updateConnection(detail = {}) {
@@ -139,6 +145,8 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
     chip.dataset.state = attention > 0 ? "attention" : offline ? "offline" : "online";
     chip.textContent = attention > 0 ? `${attention} 项待处理` : pending > 0 ? `待同步 ${pending}` : offline ? "离线创作" : "在线";
     chip.setAttribute("aria-label", `离线与同步：${chip.textContent}`);
+    buttons.get("more").dataset.syncAttention = String(attention > 0 || pending > 0);
+    buttons.get("more").setAttribute("aria-description", chip.textContent);
   }
   updateConnection();
   window.addEventListener("scriverse-desktop-sync-state", (event) => {

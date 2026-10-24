@@ -150,3 +150,64 @@
   .is-directory .volume-header { padding: 5px 0; }
 }
 @media (max-width: 800px) { .scriverse-mobile-app button:disabled { opacity: .45; } }
+.scriverse-mobile-app .topbar .brand-block { display: none !important; }
+.scriverse-mobile-app .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+.app-wide-more { min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); font: inherit; font-size: 13px; }
+.mobile-more-identity { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 8px 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.mobile-more-identity img { width: 32px; height: 32px; border-radius: 8px; }
+.mobile-more-identity-copy { display: grid; gap: 4px; min-width: 0; }
+.mobile-more-identity strong { font-size: 14px; }
+.mobile-more-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; }
+.app-auth-more { position: absolute; top: 16px; right: 16px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); font: inherit; font-size: 13px; }
+@media (max-width: 800px) {
+  .scriverse-mobile-app .app-shell, .scriverse-mobile-app .app-shell.shelf-mode { grid-template-rows: minmax(0, 1fr); }
+  .scriverse-mobile-app .topbar, .scriverse-mobile-app .auth-brand, .scriverse-mobile-app .product-footer { display: none !important; }
+  .scriverse-mobile-app .main-panel, .scriverse-mobile-app .app-shell.shelf-mode .main-panel { grid-row: 1; }
+  .scriverse-mobile-app :is(button, input, select, textarea) { max-width: 100%; min-width: 0; }
+  .scriverse-mobile-app button { white-space: normal; overflow-wrap: anywhere; }
+  .scriverse-mobile-app .shelf-view { padding-top: 20px; }
+  .scriverse-mobile-app .shelf-header h1 { font-size: 24px; }
+  .scriverse-mobile-app .module-header { display: flex; flex-direction: column; align-items: stretch; padding: 18px 16px; gap: 14px; }
+  .scriverse-mobile-app .module-header h1 { font-size: 22px; overflow-wrap: anywhere; }
+  .scriverse-mobile-app .module-header-actions { width: 100%; min-width: 0; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+  .scriverse-mobile-app .module-header-actions > button, .scriverse-mobile-app .module-header-actions > a { min-width: 0; white-space: normal; }
+  .scriverse-mobile-app .module-create-button { flex: 1 1 112px; }
+  .scriverse-mobile-app :is(.card-actions, .editor-actions, .config-section-header, .entity-editor-mode-actions, .character-editor-header-actions, .dialog-actions) { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+  .scriverse-mobile-app :is(.card-actions, .entity-editor-mode-actions, .character-editor-header-actions, .dialog-actions) > button { min-width: 0; max-width: 100%; white-space: normal; }
+  .scriverse-mobile-app .card-actions > button { flex: 1 1 96px; }
+  .scriverse-mobile-app .card-actions > :is(.record-pin-button, .record-favorite-button, .record-card-edit) { flex: 0 0 44px; width: 44px; min-width: 44px; max-width: 44px; padding: 10px; }
+  .scriverse-mobile-app .preview-record-card .card-actions { justify-content: flex-end; }
+  .scriverse-mobile-app .character-card.has-card-edit { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 44px); align-content: start; gap: 8px; }
+  .scriverse-mobile-app .character-card.has-card-edit > :not(button) { grid-column: 1 / -1; min-width: 0; }
+  .scriverse-mobile-app .character-card.has-card-edit .character-card-heading { grid-row: 1; padding-right: 0 !important; transform: none; }
+  .scriverse-mobile-app .character-card.has-card-edit > :is(.record-card-edit, .character-favorite-button, .character-pin-button) { position: static; grid-row: 2; width: 44px; min-width: 44px; height: 44px; padding: 10px; }
+  .scriverse-mobile-app .character-card.has-card-edit > .character-pin-button { grid-column: 2; }
+  .scriverse-mobile-app .character-card.has-card-edit > .character-favorite-button { grid-column: 3; }
+  .scriverse-mobile-app .character-card.has-card-edit > .record-card-edit { grid-column: 4; }
+  .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit { display: flex; flex-wrap: wrap; align-content: start; gap: 8px; }
+  .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit > :not(button) { flex: 0 0 100%; min-width: 0; max-width: 100%; margin-block: 0; }
+  .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit > :is(.record-card-edit, .record-pin-button, .record-favorite-button) { position: static; flex: 0 0 44px; width: 44px; min-height: 44px; padding: 10px; margin: 0; }
+  .scriverse-mobile-app :is(.organization-card, .race-card).has-card-edit > button:first-of-type { margin-left: auto; }
+  .scriverse-mobile-app .relationship-map-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .scriverse-mobile-app .relationship-map-actions { display: flex; flex-wrap: wrap; width: 100%; min-width: 0; gap: 6px; }
+  .scriverse-mobile-app .relationship-map-actions button { flex: 1 1 80px; min-width: 0; max-width: 100%; min-height: 44px; white-space: normal; }
+  .scriverse-mobile-app .relationship-map-toolbar .relationship-node-search { width: 100%; min-width: 0; max-width: none; }
+  .scriverse-mobile-app .timeline-track-actions { max-width: 100%; min-width: 0; flex-wrap: wrap; }
+  .scriverse-mobile-app .timeline-track-actions button { min-height: 44px; min-width: 0; max-width: 100%; white-space: normal; }
+  .scriverse-mobile-app .toast-region[data-position="bottom-right"], .scriverse-mobile-app .toast-region[data-position="bottom-right"]:popover-open { right: 12px; bottom: calc(var(--mobile-bottom-space) + 12px); max-width: calc(100vw - 24px); }
+  .scriverse-mobile-app .dialog-header > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .scriverse-mobile-app .mobile-sheet-header > div { min-width: 0; }
+  .scriverse-mobile-app .mobile-sheet-header .eyebrow { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scriverse-mobile-app .dialog-actions > button { flex: 1 1 112px; }
+  .scriverse-mobile-app .character-editor-header-actions > :is(.primary-button, .ghost-button) { white-space: normal; }
+  .scriverse-mobile-app .setting-editor-header-fields, .scriverse-mobile-app .setting-editor-header-fields > label { min-width: 0; max-width: 100%; }
+  .scriverse-mobile-app .app-shell.ai-workspace-mode .ai-panel.is-conversation-workspace .ai-heading { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; padding: 0 0 10px; }
+  .scriverse-mobile-app .ai-heading #ai-panel-toggle { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .scriverse-mobile-app .ai-heading-title { min-width: 0; }
+  .scriverse-mobile-app .ai-heading-title strong { display: block; white-space: normal; }
+  .scriverse-mobile-app .ai-heading-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 44px); gap: 4px; width: 100%; margin: 0; }
+  .scriverse-mobile-app .ai-heading-actions button { width: 44px; min-width: 0; height: 44px; padding: 0; }
+  .scriverse-mobile-app .ai-heading-actions .ai-conversation-switcher { width: 100%; max-width: none; padding: 0 8px; }
+  .scriverse-mobile-app .mobile-bottom-nav [data-destination="more"] { position: relative; }
+  .scriverse-mobile-app .mobile-bottom-nav [data-sync-attention="true"]::after { position: absolute; top: 6px; right: calc(50% - 15px); width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ""; }
+}

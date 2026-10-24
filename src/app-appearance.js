@@ -117,7 +117,11 @@ function open() { createDialog().showModal(); document.querySelector("#app-font-
 applyFontSize(fontSize);
 document.addEventListener("load", (event) => { if (event.target instanceof HTMLLinkElement) scheduleStyles(); }, true);
 new MutationObserver((records) => { if (records.some((record) => [...record.addedNodes].some((node) => node.nodeType === 1 && (node.matches?.("style, link[rel=stylesheet]") || node.querySelector?.("style, link[rel=stylesheet]"))))) scheduleStyles(); }).observe(root, { childList: true, subtree: true });
-document.addEventListener("DOMContentLoaded", () => { refreshStyles(); createDialog(); });
+document.addEventListener("DOMContentLoaded", () => {
+  refreshStyles(); createDialog();
+  const auth = document.querySelector("#auth-view");
+  if (auth) { const more = element("button", "app-auth-more", "更多"); more.type = "button"; more.dataset.appSettings = ""; more.setAttribute("aria-haspopup", "dialog"); more.setAttribute("aria-controls", "app-settings-dialog"); auth.append(more); }
+});
 document.addEventListener("click", (event) => { if (event.target.closest?.("[data-app-settings]")) open(); });
 window.addEventListener("storage", (event) => { if (event.key === APP_APPEARANCE_KEY || event.key === null) applyFontSize(readAppFontSize(localStorage)); });
 window.addEventListener("pageshow", () => applyFontSize(readAppFontSize(localStorage)));

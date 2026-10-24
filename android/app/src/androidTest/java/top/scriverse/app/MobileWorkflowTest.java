@@ -46,7 +46,7 @@ public class MobileWorkflowTest {
         assertTrue("App did not become visible", device.wait(Until.hasObject(By.pkg(packageName)), 15000));
     }
     private UiObject2 find(BySelector selector) throws Exception {
-        UiObject2 result = device.wait(Until.findObject(selector), 12000);
+        UiObject2 result = device.wait(Until.findObject(selector.pkg(packageName)), 12000);
         if (result == null) { screenshot("android-failure"); device.dumpWindowHierarchy(new File(context.getExternalFilesDir(null), "android-failure.xml")); fail("Native control is missing: " + selector); }
         return result;
     }
@@ -98,19 +98,24 @@ public class MobileWorkflowTest {
         } finally { expected.recycle(); screen.recycle(); }
     }
     private void ensureLauncher() throws Exception {
+        find(By.res(java.util.regex.Pattern.compile("add-server|mobile-bottom-nav|ai-panel-toggle|local-ai-new-provider|app-settings-dialog")));
         for (int step = 0; step < 5; step++) {
-            if (device.hasObject(By.res("add-server"))) return;
-            if (device.hasObject(By.res("mobile-connection-chip"))) {
-                clickId("mobile-connection-chip"); clickText("切换工作区"); return;
+            assertTrue("The isolated app is no longer visible", device.wait(Until.hasObject(By.pkg(packageName)), 5000));
+            if (device.hasObject(By.res("app-settings-dialog").pkg(packageName))) { device.pressBack(); device.wait(Until.gone(By.res("app-settings-dialog").pkg(packageName)), 5000); continue; }
+            if (device.hasObject(By.res("add-server").pkg(packageName))) return;
+            if (device.hasObject(By.res("mobile-bottom-nav").pkg(packageName))) {
+                clickText("更多"); scrollTo(By.textStartsWith("切换工作区")).click(); find(By.res("add-server")); return;
             }
-            if (device.hasObject(By.res("ai-panel-toggle"))) { clickId("ai-panel-toggle"); continue; }
-            device.pressBack();
+            if (device.hasObject(By.res("ai-panel-toggle").pkg(packageName))) { clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav")); continue; }
+            if (device.hasObject(By.res("local-ai-new-provider").pkg(packageName))) { clickText("返回工作区"); continue; }
+            find(By.res("mobile-bottom-nav"));
         }
         find(By.res("add-server"));
     }
     private void chooseBook() throws Exception {
         find(By.desc("打开 星海纪事")).click();
         find(By.res("mobile-bottom-nav"));
+        assertTrue("Workspace navigation did not become ready", device.wait(Until.hasObject(By.text("正文").enabled(true)), 15000));
     }
     private void chooseFirstChapter() throws Exception {
         clickText("正文");
@@ -132,8 +137,8 @@ public class MobileWorkflowTest {
         if (download != null) download.click();
         UiObject2 tour = device.wait(Until.findObject(By.text("跳过导览")), 1500);
         if (tour != null) tour.click();
-        find(By.res("mobile-connection-chip"));
-        clickId("mobile-connection-chip");
+        find(By.res("mobile-bottom-nav"));
+        clickText("更多"); clickId("mobile-connection-chip");
         UiObject2 downloadOne = device.wait(Until.findObject(By.text("下载到本机")), 1000);
         if (downloadOne != null) downloadOne.click();
         assertTrue("Work package did not finish downloading", device.wait(Until.hasObject(By.textContains("1 部离线作品")), 45000));
@@ -143,7 +148,7 @@ public class MobileWorkflowTest {
     @Test public void prepareOfflineEdit() throws Exception {
         configureProfile();
         clickText("离线进入");
-        find(By.desc("离线与同步：离线创作"));
+        waitForSyncState("离线创作");
         chooseBook(); chooseFirstChapter();
         clickId("chapter-edit-button");
         find(By.res("save-button"));
@@ -151,7 +156,9 @@ public class MobileWorkflowTest {
         assertTrue(context.getSharedPreferences("e2e-workflow", Context.MODE_PRIVATE).edit().putString("marker", marker).commit());
         find(By.res("chapter-content")).setText(marker);
         clickId("save-button");
-        assertTrue("Offline change did not enter the upload queue", device.wait(Until.hasObject(By.desc("离线与同步：待同步 1")), 15000));
+        assertTrue("Offline save did not finish", device.wait(Until.hasObject(By.textContains("正文已保存到本机")), 15000));
+        assertFalse("Save notifications must not cover the bottom navigation", fontMetrics().getBoolean("toastCoversNavigation"));
+        waitForSyncState("待同步 1");
         screenshot("android-offline-editor");
     }
     private String savedMarker() {
@@ -168,24 +175,30 @@ public class MobileWorkflowTest {
     @Test public void verifyPersistenceAndSync() throws Exception {
         verifyOfflinePersistence();
         ensureLauncher(); clickText("进入工作区");
-        assertTrue("Queued upload did not finish", device.wait(Until.hasObject(By.desc("离线与同步：在线")), 20000));
+        waitForSyncState("在线");
         chooseBook(); chooseFirstChapter();
         assertTrue("Uploaded text is not visible online", device.wait(Until.hasObject(By.res("chapter-content").textContains(savedMarker())), 15000));
         screenshot("android-online-synced");
         ensureLauncher();
     }
     private void fillVisibleEdit(int index, String value) throws Exception {
-        List<UiObject2> fields = device.findObjects(By.clazz("android.widget.EditText"));
+        List<UiObject2> fields = device.findObjects(By.clazz("android.widget.EditText").pkg(packageName));
         assertTrue("Expected input field is missing", fields.size() > index);
         fields.get(index).setText(value);
     }
     private UiObject2 scrollToText(String value) throws Exception {
+        return scrollTo(By.text(value));
+    }
+    private UiObject2 scrollTo(BySelector selector) throws Exception {
+        BySelector scoped = selector.pkg(packageName);
         for (int step = 0; step < 6; step++) {
-            UiObject2 result = device.findObject(By.text(value));
+            UiObject2 result = device.findObject(scoped);
             if (result != null && !result.getVisibleBounds().isEmpty()) return result;
             device.swipe(device.getDisplayWidth() / 2, device.getDisplayHeight() * 4 / 5, device.getDisplayWidth() / 2, device.getDisplayHeight() / 3, 30);
         }
-        return find(By.text(value));
+        UiObject2 result = device.wait(Until.findObject(scoped), 12000);
+        assertNotNull("Native scrolling control is missing: " + scoped, result);
+        return result;
     }
     @Test public void configurePhoneModel() throws Exception {
         ensureLauncher(); clickId("app-more-button"); clickId("local-ai-open");
@@ -236,7 +249,7 @@ public class MobileWorkflowTest {
         screenshot("android-offline-ai-chat");
         assertCleanNativeFrame("android-offline-ai-chat");
         device.pressBack();
-        find(By.res("mobile-connection-chip"));
+        find(By.res("mobile-bottom-nav"));
         java.util.concurrent.atomic.AtomicInteger restoredLayer = new java.util.concurrent.atomic.AtomicInteger(-1);
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
@@ -261,14 +274,27 @@ public class MobileWorkflowTest {
     private org.json.JSONObject fontMetrics() throws Exception {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
+        String inspect = "JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, "
+            + "samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), "
+            + "editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')), "
+            + "toastCoversNavigation: (()=>{const nav=document.querySelector('#mobile-bottom-nav')?.getBoundingClientRect();const toast=document.querySelector('#toast-region')?.getBoundingClientRect();return Boolean(nav?.height>0&&toast?.height>0&&toast.bottom>nav.top+1&&toast.top<nav.bottom);})(), "
+            + "persistentBrand: [...document.querySelectorAll('.topbar .brand-block,.auth-brand,.launcher-brand > img,.mobile-local-ai .module-header .eyebrow')].some(node => node.getBoundingClientRect().height > 0), "
+            + "outsideButtons: [...document.querySelectorAll('.module-header-actions button,.module-header-actions a,.editor-actions button,.entity-editor-mode-actions button,.character-editor-header-actions button,.ai-heading button,.card-actions button,.app-font-controls button')].filter(node => { const rect=node.getBoundingClientRect(); return rect.width>0 && rect.height>0 && getComputedStyle(node).visibility!=='hidden' && (rect.left < -1 || rect.right > innerWidth+1); }).map(node=>node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0,40)) })";
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
                 if (!(activity instanceof MainActivity)) continue;
-                ((MainActivity) activity).getBridge().getWebView().evaluateJavascript("JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, samples: Object.fromEntries(['#server-list-title','.app-font-preview p','.module-header h1','#chapter-content','.vditor-reset','#ai-prompt'].map(selector => { const node = document.querySelector(selector); return [selector, node ? parseFloat(getComputedStyle(node).fontSize) : null]; })), editorBase: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')) })", value -> { result.set(value); observed.countDown(); });
+                ((MainActivity) activity).getBridge().getWebView().evaluateJavascript(inspect, value -> { result.set(value); observed.countDown(); });
             }
         });
         assertTrue("Could not inspect native typography", observed.await(5, java.util.concurrent.TimeUnit.SECONDS));
         return new org.json.JSONObject((String) new org.json.JSONTokener(result.get()).nextValue());
+    }
+
+    private void assertMobileLayout() throws Exception {
+        org.json.JSONObject layout = fontMetrics();
+        assertFalse("Mobile layout overflows horizontally", layout.getBoolean("overflow"));
+        assertFalse("Branding must only appear inside More", layout.getBoolean("persistentBrand"));
+        assertEquals("Mobile actions extend outside the screen: " + layout.getJSONArray("outsideButtons"), 0, layout.getJSONArray("outsideButtons").length());
     }
 
     private void largerFont() throws Exception {
@@ -278,6 +304,13 @@ public class MobileWorkflowTest {
 
     private void workspaceFontSettings() throws Exception { clickText("更多"); find(By.textStartsWith("显示与字号")).click(); find(By.res("app-font-size")); }
 
+    private void waitForSyncState(String value) throws Exception {
+        find(By.res("mobile-bottom-nav")); clickText("更多");
+        find(By.res("mobile-command-sheet"));
+        assertTrue("Unexpected native synchronization state: " + value, device.wait(Until.hasObject(By.desc("离线与同步：" + value)), 20000));
+        device.pressBack();
+    }
+
     @Test public void globalFontSizingAcrossPages() throws Exception {
         ensureLauncher(); clickId("app-more-button"); clickId("app-font-reset");
         org.json.JSONObject small = fontMetrics();
@@ -285,6 +318,7 @@ public class MobileWorkflowTest {
         assertEquals(14.4, small.getJSONObject("samples").getDouble(".app-font-preview p"), .15);
         largerFont();
         org.json.JSONObject large = fontMetrics();
+        assertMobileLayout();
         assertEquals(small.getJSONObject("samples").getDouble("#server-list-title") * 4 / 3, large.getJSONObject("samples").getDouble("#server-list-title"), .15);
         assertEquals(19.2, large.getJSONObject("samples").getDouble(".app-font-preview p"), .15);
         clickId("local-ai-open"); find(By.res("local-ai-new-provider"));
@@ -293,6 +327,7 @@ public class MobileWorkflowTest {
         double localSmall = fontMetrics().getJSONObject("samples").getDouble(".module-header h1");
         clickId("app-more-button"); largerFont(); device.pressBack();
         assertEquals(localSmall * 4 / 3, fontMetrics().getJSONObject("samples").getDouble(".module-header h1"), .15);
+        assertMobileLayout();
         clickText("返回工作区"); find(By.res("add-server"));
         clickText("离线进入"); chooseBook();
         clickText("设定库"); clickText("角色"); find(By.text("角色与人物属性"));
@@ -300,18 +335,23 @@ public class MobileWorkflowTest {
         double moduleSmall = fontMetrics().getJSONObject("samples").getDouble(".module-header h1");
         workspaceFontSettings(); largerFont(); device.pressBack();
         assertEquals(moduleSmall * 4 / 3, fontMetrics().getJSONObject("samples").getDouble(".module-header h1"), .15);
+        assertMobileLayout();
         chooseFirstChapter();
         org.json.JSONObject prose = fontMetrics();
         assertEquals(prose.getDouble("editorBase") * 1.2, prose.getJSONObject("samples").getDouble("#chapter-content"), .15);
+        assertMobileLayout();
         clickText("设定库"); clickText("设定");
-        find(By.desc("查看设定 潮汐引擎")).click(); clickId("setting-editor-edit");
+        Rect settingCard = find(By.desc("查看设定 潮汐引擎")).getVisibleBounds();
+        device.click(settingCard.left + 32, settingCard.top + 32); clickId("setting-editor-edit");
         find(By.textContains("冷却时间为三小时"));
         assertEquals(19.2, fontMetrics().getJSONObject("samples").getDouble(".vditor-reset"), .15);
+        assertMobileLayout();
         screenshot("android-font-markdown-large");
         clickId("setting-editor-back");
         clickText("AI"); find(By.res("ai-prompt"));
         assertEquals(19.2, fontMetrics().getJSONObject("samples").getDouble("#ai-prompt"), .15);
-        device.pressBack();
+        assertMobileLayout();
+        clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav"));
         ensureLauncher(); clickId("app-more-button");
         assertEquals(120, fontMetrics().getInt("scale"));
         screenshot("android-font-settings-large");

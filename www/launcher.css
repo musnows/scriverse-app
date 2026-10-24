@@ -60,3 +60,9 @@ small { color: var(--muted); font-size: 11px; line-height: 1.7; }
 @media (prefers-color-scheme: dark) { :root { --paper: #15201f; --surface: #1c2927; --ink: #edf1e9; --muted: #a0aea5; --line: #34443d; --accent: #d29278; --soft: #263b34; --green: #98c3ac; } .server-actions button:not(.secondary), .primary-button { color: #17231f; } }
 @media (min-width: 800px) { main { padding-top: 48px; } .welcome-copy { padding-top: 56px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+.app-launcher main { padding-top: max(16px, env(safe-area-inset-top)); }
+.app-launcher .launcher-page-title { margin: 0; font: inherit; font-size: 22px; font-weight: 700; letter-spacing: 0; }
+.app-launcher .welcome-copy, .app-launcher .local-note, .app-launcher main > footer { display: none; }
+.app-launcher .workspace-section { margin-top: 24px; }
+.app-launcher .server-actions button, .app-launcher .workspace-card-tools button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.app-launcher .section-heading { flex-wrap: wrap; }
