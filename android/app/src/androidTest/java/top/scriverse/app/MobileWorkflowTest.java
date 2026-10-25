@@ -338,6 +338,7 @@ public class MobileWorkflowTest {
             + "toggles:[...document.querySelectorAll('[data-mobile-graph-toggle]')].map(node=>({id:node.id,text:node.textContent.trim(),label:node.getAttribute('aria-label'),title:node.title,pressed:node.getAttribute('aria-pressed')??node.getAttribute('aria-expanded'),rect:node.getBoundingClientRect().toJSON(),icon:node.querySelector('svg')?.getBoundingClientRect().toJSON()})), "
             + "map:{open:document.querySelector('#relationship-map-dialog').open,rect:document.querySelector('#relationship-map-dialog').getBoundingClientRect().toJSON(),graph:document.querySelector('#relationship-map-expanded-host .relationship-network')?.getBoundingClientRect().toJSON(),nodes:document.querySelectorAll('#relationship-map-expanded-host .mind-node').length}, "
             + "galaxy:{open:document.querySelector('#relationship-galaxy-dialog').open,rect:document.querySelector('#relationship-galaxy-dialog').getBoundingClientRect().toJSON(),width:document.querySelector('#galaxy-graph').width,height:document.querySelector('#galaxy-graph').height,zoom:Number(document.querySelector('.galaxy-shell').dataset.graphScale),grid:document.querySelector('#galaxy-grid').getAttribute('aria-pressed')==='true',resources:document.querySelector('.galaxy-shell').dataset.resourceState,nodes:document.querySelectorAll('#galaxy-node-layer .galaxy-node').length}, "
+            + "dock:{rect:document.querySelector('.galaxy-controls').getBoundingClientRect().toJSON(),motionStatus:document.querySelector('#galaxy-motion-status').textContent.trim(),controls:[...document.querySelectorAll('.galaxy-controls button,.galaxy-controls select')].map(node=>({id:node.id,rect:node.getBoundingClientRect().toJSON(),overflow:node.scrollWidth>node.clientWidth+1||node.scrollHeight>node.clientHeight+1}))}, "
             + "outsideControls:[...document.querySelectorAll('.mobile-graph-fullscreen .relationship-map-toolbar button,.mobile-graph-fullscreen .relationship-map-floating-close,.mobile-graph-fullscreen .mobile-graph-presentation-toggle,.mobile-graph-fullscreen .galaxy-controls button,.mobile-graph-fullscreen .galaxy-controls select,.mobile-graph-fullscreen .galaxy-close')].filter(node=>{const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&(r.left < -1 || r.right > innerWidth+1 || r.top < -1 || r.bottom > innerHeight+1);}).map(node=>node.id||node.textContent.trim()) })";
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
@@ -411,6 +412,20 @@ public class MobileWorkflowTest {
         device.waitForIdle(1200);
     }
 
+    private void assertGalaxyControlsCompact() throws Exception {
+        org.json.JSONObject dock = graphMetrics().getJSONObject("dock");
+        assertTrue("The galaxy dock takes too much screen width", dock.getJSONObject("rect").getDouble("width") <= 302);
+        assertTrue("The galaxy dock takes too much screen height", dock.getJSONObject("rect").getDouble("height") <= 112);
+        org.json.JSONArray controls = dock.getJSONArray("controls");
+        assertEquals("All galaxy controls must remain available", 7, controls.length());
+        for (int index = 0; index < controls.length(); index++) {
+            org.json.JSONObject control = controls.getJSONObject(index);
+            assertFalse("Galaxy control text is clipped: " + control.getString("id"), control.getBoolean("overflow"));
+            assertTrue("The compact galaxy control is too narrow to tap: " + control.getString("id"), control.getJSONObject("rect").getDouble("width") >= 43);
+            assertTrue("The compact galaxy control is too short to tap: " + control.getString("id"), control.getJSONObject("rect").getDouble("height") >= 43);
+        }
+    }
+
     @Test public void relationshipLandscapePresentation() throws Exception {
         openRelationships(); assertGraphToggle("mobile-map-presentation-open", false); clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
         assertGraphToggle("mobile-map-presentation-toggle", true);
@@ -442,6 +457,7 @@ public class MobileWorkflowTest {
         assertGraphToggle("mobile-galaxy-presentation-toggle", false);
         clickId("mobile-galaxy-presentation-toggle"); assertGraphFullscreen("galaxy");
         assertGraphToggle("mobile-galaxy-presentation-toggle", true);
+        assertGalaxyControlsCompact();
         double zoom = graphMetrics().getJSONObject("galaxy").getDouble("zoom");
         Rect zoomBounds = find(By.res("galaxy-zoom-in")).getVisibleBounds();
         clickId("galaxy-zoom-in");
@@ -454,6 +470,20 @@ public class MobileWorkflowTest {
         boolean grid;
         do { grid = graphMetrics().getJSONObject("galaxy").getBoolean("grid"); if (grid) break; android.os.SystemClock.sleep(50); } while (android.os.SystemClock.elapsedRealtime() < deadline);
         assertTrue("The galaxy grid control is not responding", grid);
+        assertEquals("Reset must restore the galaxy zoom", 1, graphMetrics().getJSONObject("galaxy").getDouble("zoom"), .01);
+        clickId("galaxy-zoom-out");
+        deadline = android.os.SystemClock.elapsedRealtime() + 5000;
+        do { zoomed = graphMetrics(); if (zoomed.getJSONObject("galaxy").getDouble("zoom") < 1) break; android.os.SystemClock.sleep(50); } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        assertTrue("The compact zoom-out control is not responding", zoomed.getJSONObject("galaxy").getDouble("zoom") < 1);
+        clickId("galaxy-reset");
+        clickId("galaxy-stars"); find(By.res("galaxy-stars").text("显示背景星点"));
+        clickId("galaxy-stars"); find(By.res("galaxy-stars").text("隐藏背景星点"));
+        clickId("galaxy-rotation"); find(By.res("galaxy-rotation").text("继续旋转"));
+        clickId("galaxy-rotation"); find(By.res("galaxy-rotation").text("暂停旋转"));
+        clickId("galaxy-motion-mode"); find(By.text("减少")); device.waitForIdle(1200); clickText("减少"); find(By.res("galaxy-motion-mode").text("减少"));
+        assertEquals("持续动效已减少", graphMetrics().getJSONObject("dock").getString("motionStatus"));
+        clickId("galaxy-motion-mode"); find(By.text("自动")); device.waitForIdle(1200); clickText("自动"); find(By.res("galaxy-motion-mode").text("自动"));
+        assertEquals("当前为完整动效", graphMetrics().getJSONObject("dock").getString("motionStatus"));
         screenshot("android-galaxy-landscape");
         clickId("mobile-galaxy-presentation-toggle"); awaitGraphOrientation(false);
         assertTrue("Leaving landscape must retain the galaxy", graphMetrics().getJSONObject("galaxy").getBoolean("open"));
@@ -465,6 +495,11 @@ public class MobileWorkflowTest {
         clickId("galaxy-close"); assertGraphFullscreen("map");
         device.pressBack(); awaitGraphOrientation(false);
         assertEquals("", graphMetrics().getString("active"));
+        workspaceFontSettings(); largerFont(); device.pressBack();
+        find(By.desc("全屏银河图")).click(); clickId("mobile-galaxy-presentation-toggle"); assertGraphFullscreen("galaxy");
+        assertGalaxyControlsCompact(); screenshot("android-galaxy-landscape-large");
+        device.pressBack(); awaitGraphOrientation(false);
+        workspaceFontSettings(); clickId("app-font-reset"); device.pressBack();
     }
 
     private org.json.JSONObject fontMetrics() throws Exception {
