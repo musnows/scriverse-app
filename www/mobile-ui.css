@@ -8,7 +8,8 @@
 .mobile-bottom-nav, .mobile-connection-chip { display: none; }
 .scriverse-mobile-app .mobile-welcome-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .scriverse-mobile-app .mobile-welcome-actions > button { min-width: 0; min-height: 44px; padding: 12px 20px; white-space: normal; }
-.mobile-graph-presentation-toggle { min-height: 44px; white-space: nowrap; }
+.scriverse-mobile-app .mobile-graph-presentation-toggle, .scriverse-mobile-app .relationship-map-actions .mobile-graph-presentation-toggle, .scriverse-mobile-app #relationship-map-dialog.mobile-graph-fullscreen .relationship-map-actions .mobile-graph-presentation-toggle { flex: 0 0 44px; display: inline-grid; place-items: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; }
+.mobile-graph-presentation-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .scriverse-mobile-app.mobile-graph-presenting .mobile-bottom-nav { display: none !important; }
 .scriverse-mobile-app .mobile-graph-fullscreen { width: 100vw; max-width: none; height: 100dvh; max-height: none; inset: 0; margin: 0; padding: 0; border: 0; border-radius: 0; }
 .scriverse-mobile-app #relationship-map-dialog.mobile-graph-fullscreen .relationship-map-expanded-host { padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }

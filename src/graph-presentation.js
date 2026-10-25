@@ -14,9 +14,10 @@ export function installGraphPresentation(apply) {
     for (const button of document.querySelectorAll("[data-mobile-graph-toggle]")) {
       const kind = button.dataset.mobileGraphToggle;
       const active = value[kind];
-      const text = active ? "退出横屏" : "横屏全屏";
-      if (button.textContent !== text) button.textContent = text;
-      button.setAttribute("aria-label", active ? `退出${kind === "map" ? "关系图" : "银河图"}横屏全屏` : `横屏全屏查看${kind === "map" ? "关系图" : "银河图"}`);
+      const label = active ? `退出${kind === "map" ? "关系图" : "银河图"}横屏全屏` : `横屏全屏查看${kind === "map" ? "关系图" : "银河图"}`;
+      button.querySelector("path").setAttribute("d", active ? "M3 8h5V3m8 0v5h5m0 8h-5v5M8 21v-5H3" : "M8 3H3v5m13-5h5v5m0 8v5h-5M8 21H3v-5");
+      button.setAttribute("aria-label", label);
+      button.title = label;
       if (button.id === "mobile-map-presentation-open") button.setAttribute("aria-expanded", String(active));
       else button.setAttribute("aria-pressed", String(active));
     }
@@ -44,6 +45,7 @@ export function installGraphPresentation(apply) {
     const control = document.createElement("button");
     control.id = id; control.type = "button"; control.className = "ghost-button mobile-graph-presentation-toggle";
     control.dataset.mobileGraphToggle = kind;
+    control.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path></path></svg>';
     return control;
   }
 

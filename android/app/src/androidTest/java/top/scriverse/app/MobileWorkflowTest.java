@@ -335,6 +335,7 @@ public class MobileWorkflowTest {
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicInteger visibleBars = new java.util.concurrent.atomic.AtomicInteger(-1);
         String inspect = "JSON.stringify({ viewport:[innerWidth,innerHeight], active:document.documentElement.dataset.graphPresentation, "
+            + "toggles:[...document.querySelectorAll('[data-mobile-graph-toggle]')].map(node=>({id:node.id,text:node.textContent.trim(),label:node.getAttribute('aria-label'),title:node.title,pressed:node.getAttribute('aria-pressed')??node.getAttribute('aria-expanded'),rect:node.getBoundingClientRect().toJSON(),icon:node.querySelector('svg')?.getBoundingClientRect().toJSON()})), "
             + "map:{open:document.querySelector('#relationship-map-dialog').open,rect:document.querySelector('#relationship-map-dialog').getBoundingClientRect().toJSON(),graph:document.querySelector('#relationship-map-expanded-host .relationship-network')?.getBoundingClientRect().toJSON(),nodes:document.querySelectorAll('#relationship-map-expanded-host .mind-node').length}, "
             + "galaxy:{open:document.querySelector('#relationship-galaxy-dialog').open,rect:document.querySelector('#relationship-galaxy-dialog').getBoundingClientRect().toJSON(),width:document.querySelector('#galaxy-graph').width,height:document.querySelector('#galaxy-graph').height,zoom:Number(document.querySelector('.galaxy-shell').dataset.graphScale),grid:document.querySelector('#galaxy-grid').getAttribute('aria-pressed')==='true',resources:document.querySelector('.galaxy-shell').dataset.resourceState,nodes:document.querySelectorAll('#galaxy-node-layer .galaxy-node').length}, "
             + "outsideControls:[...document.querySelectorAll('.mobile-graph-fullscreen .relationship-map-toolbar button,.mobile-graph-fullscreen .relationship-map-floating-close,.mobile-graph-fullscreen .mobile-graph-presentation-toggle,.mobile-graph-fullscreen .galaxy-controls button,.mobile-graph-fullscreen .galaxy-controls select,.mobile-graph-fullscreen .galaxy-close')].filter(node=>{const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&(r.left < -1 || r.right > innerWidth+1 || r.top < -1 || r.bottom > innerHeight+1);}).map(node=>node.id||node.textContent.trim()) })";
@@ -363,6 +364,20 @@ public class MobileWorkflowTest {
             android.os.SystemClock.sleep(50);
         }
         fail("Graph orientation did not change to " + (landscape ? "landscape" : "portrait"));
+    }
+
+    private void assertGraphToggle(String id, boolean active) throws Exception {
+        org.json.JSONArray toggles = graphMetrics().getJSONArray("toggles");
+        org.json.JSONObject toggle = null;
+        for (int index = 0; index < toggles.length(); index++) if (toggles.getJSONObject(index).getString("id").equals(id)) toggle = toggles.getJSONObject(index);
+        assertNotNull("The orientation control is missing", toggle);
+        assertEquals("Orientation controls must use icons without visible text", "", toggle.getString("text"));
+        assertTrue("The orientation icon must be visible", toggle.getJSONObject("icon").getDouble("width") >= 18);
+        assertEquals("The orientation icon needs an accessible name and tooltip", toggle.getString("label"), toggle.getString("title"));
+        assertTrue(toggle.getString("label").contains("横屏全屏"));
+        assertEquals(String.valueOf(active), toggle.getString("pressed"));
+        assertEquals("The orientation button must keep a compact touch target", 44, toggle.getJSONObject("rect").getDouble("width"), 1);
+        assertEquals(44, toggle.getJSONObject("rect").getDouble("height"), 1);
     }
 
     private void assertGraphFullscreen(String kind) throws Exception {
@@ -397,7 +412,8 @@ public class MobileWorkflowTest {
     }
 
     @Test public void relationshipLandscapePresentation() throws Exception {
-        openRelationships(); clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
+        openRelationships(); assertGraphToggle("mobile-map-presentation-open", false); clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
+        assertGraphToggle("mobile-map-presentation-toggle", true);
         screenshot("android-map-landscape");
         UiObject2 map = find(By.res("relationship-map-dialog"));
         UiObject2 node = map.findObject(By.descStartsWith("林舟，"));
@@ -411,6 +427,7 @@ public class MobileWorkflowTest {
         clickId("mobile-map-presentation-toggle"); awaitGraphOrientation(false);
         assertTrue("Leaving landscape must retain the graph preview", graphMetrics().getJSONObject("map").getBoolean("open"));
         assertEquals("", graphMetrics().getString("active"));
+        assertGraphToggle("mobile-map-presentation-toggle", false);
         clickId("mobile-map-presentation-toggle"); assertGraphFullscreen("map");
         device.pressBack(); awaitGraphOrientation(false);
         assertFalse("Native back must close the map preview", graphMetrics().getJSONObject("map").getBoolean("open"));
@@ -422,7 +439,9 @@ public class MobileWorkflowTest {
     @Test public void galaxyLandscapePresentation() throws Exception {
         openRelationships(); find(By.desc("全屏银河图")).click(); find(By.res("mobile-galaxy-presentation-toggle"));
         assertTrue("Opening the ordinary galaxy must not force landscape", device.getDisplayHeight() > device.getDisplayWidth());
+        assertGraphToggle("mobile-galaxy-presentation-toggle", false);
         clickId("mobile-galaxy-presentation-toggle"); assertGraphFullscreen("galaxy");
+        assertGraphToggle("mobile-galaxy-presentation-toggle", true);
         double zoom = graphMetrics().getJSONObject("galaxy").getDouble("zoom");
         Rect zoomBounds = find(By.res("galaxy-zoom-in")).getVisibleBounds();
         clickId("galaxy-zoom-in");
@@ -438,6 +457,7 @@ public class MobileWorkflowTest {
         screenshot("android-galaxy-landscape");
         clickId("mobile-galaxy-presentation-toggle"); awaitGraphOrientation(false);
         assertTrue("Leaving landscape must retain the galaxy", graphMetrics().getJSONObject("galaxy").getBoolean("open"));
+        assertGraphToggle("mobile-galaxy-presentation-toggle", false);
         clickId("galaxy-close");
         assertEquals("released", graphMetrics().getJSONObject("galaxy").getString("resources"));
         clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
