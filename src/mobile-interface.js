@@ -1,3 +1,5 @@
+import { installGraphPresentation } from "./graph-presentation.js";
+
 const paths = {
   shelf: '<path d="M3 4h5v16H3zm7 0h5v16h-5zm7 1 4-1 3 15-4 1z"/>',
   prose: '<path d="M3 4h6a4 4 0 0 1 3 3v14a4 4 0 0 0-3-3H3zm18 0h-6a4 4 0 0 0-3 3v14a4 4 0 0 1 3-3h6z"/>',
@@ -17,7 +19,7 @@ function element(tag, className, text) {
   return node;
 }
 
-export function installMobileInterface({ profile, offline, requestSwitch, onAiWorkspaceChange = () => undefined }) {
+export function installMobileInterface({ profile, offline, requestSwitch, onAiWorkspaceChange = () => undefined, onGraphPresentation = async () => undefined }) {
   const app = document.querySelector("#app");
   if (!app || document.querySelector("#mobile-bottom-nav")) return;
   const nav = element("nav", "mobile-bottom-nav");
@@ -191,6 +193,7 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
   new MutationObserver(updateNavigation).observe(app, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("hashchange", updateNavigation);
   updateNavigation();
+  installGraphPresentation(onGraphPresentation);
   document.addEventListener("focusin", (event) => { if (event.target.matches?.('input:not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled]), [contenteditable="true"]')) document.documentElement.classList.add("mobile-input-active"); });
   document.addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement?.matches?.('input, textarea, [contenteditable="true"]')) document.documentElement.classList.remove("mobile-input-active"); }, 0));
   window.scriverseMobileBack = () => {

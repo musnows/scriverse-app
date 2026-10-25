@@ -325,6 +325,128 @@ public class MobileWorkflowTest {
         clickId("ai-panel-toggle"); find(By.res("mobile-bottom-nav"));
     }
 
+    private void openRelationships() throws Exception {
+        ensureLauncher(); clickText("离线进入"); chooseBook(); clickText("设定库"); clickText("关系");
+        find(By.res("mobile-map-presentation-open"));
+    }
+
+    private org.json.JSONObject graphMetrics() throws Exception {
+        java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger visibleBars = new java.util.concurrent.atomic.AtomicInteger(-1);
+        String inspect = "JSON.stringify({ viewport:[innerWidth,innerHeight], active:document.documentElement.dataset.graphPresentation, "
+            + "map:{open:document.querySelector('#relationship-map-dialog').open,rect:document.querySelector('#relationship-map-dialog').getBoundingClientRect().toJSON(),graph:document.querySelector('#relationship-map-expanded-host .relationship-network')?.getBoundingClientRect().toJSON(),nodes:document.querySelectorAll('#relationship-map-expanded-host .mind-node').length}, "
+            + "galaxy:{open:document.querySelector('#relationship-galaxy-dialog').open,rect:document.querySelector('#relationship-galaxy-dialog').getBoundingClientRect().toJSON(),width:document.querySelector('#galaxy-graph').width,height:document.querySelector('#galaxy-graph').height,zoom:Number(document.querySelector('.galaxy-shell').dataset.graphScale),grid:document.querySelector('#galaxy-grid').getAttribute('aria-pressed')==='true',resources:document.querySelector('.galaxy-shell').dataset.resourceState,nodes:document.querySelectorAll('#galaxy-node-layer .galaxy-node').length}, "
+            + "outsideControls:[...document.querySelectorAll('.mobile-graph-fullscreen .relationship-map-toolbar button,.mobile-graph-fullscreen .relationship-map-floating-close,.mobile-graph-fullscreen .mobile-graph-presentation-toggle,.mobile-graph-fullscreen .galaxy-controls button,.mobile-graph-fullscreen .galaxy-controls select,.mobile-graph-fullscreen .galaxy-close')].filter(node=>{const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&(r.left < -1 || r.right > innerWidth+1 || r.top < -1 || r.bottom > innerHeight+1);}).map(node=>node.id||node.textContent.trim()) })";
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (android.app.Activity activity : androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
+                if (!(activity instanceof MainActivity)) continue;
+                androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(activity.getWindow().getDecorView());
+                if (insets != null) {
+                    int visible = 0;
+                    for (int type : new int[] { androidx.core.view.WindowInsetsCompat.Type.statusBars(), androidx.core.view.WindowInsetsCompat.Type.navigationBars() }) if (insets.isVisible(type)) visible |= type;
+                    visibleBars.set(visible);
+                }
+                ((MainActivity) activity).getBridge().getWebView().evaluateJavascript(inspect, value -> { result.set(value); observed.countDown(); });
+            }
+        });
+        assertTrue("Could not inspect native graph presentation", observed.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        org.json.JSONObject metrics = new org.json.JSONObject((String) new org.json.JSONTokener(result.get()).nextValue());
+        metrics.put("visibleBars", visibleBars.get());
+        return metrics;
+    }
+
+    private void awaitGraphOrientation(boolean landscape) throws Exception {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 10000;
+        while (android.os.SystemClock.elapsedRealtime() < deadline) {
+            if ((device.getDisplayWidth() > device.getDisplayHeight()) == landscape) return;
+            android.os.SystemClock.sleep(50);
+        }
+        fail("Graph orientation did not change to " + (landscape ? "landscape" : "portrait"));
+    }
+
+    private void assertGraphFullscreen(String kind) throws Exception {
+        awaitGraphOrientation(true);
+        if (device.wait(Until.hasObject(By.res("com.android.systemui:id/immersive_cling_title")), 1500)) {
+            UiObject2 confirmation = device.findObject(By.res("com.android.systemui:id/ok"));
+            assertNotNull("The Android fullscreen introduction cannot be dismissed", confirmation);
+            confirmation.click();
+            assertTrue(device.wait(Until.gone(By.res("com.android.systemui:id/immersive_cling_title")), 5000));
+        }
+        long deadline = android.os.SystemClock.elapsedRealtime() + 10000;
+        org.json.JSONObject metrics;
+        do {
+            metrics = graphMetrics();
+            boolean landscape = metrics.getJSONArray("viewport").getDouble(0) > metrics.getJSONArray("viewport").getDouble(1);
+            boolean canvasReady = !kind.equals("galaxy") || metrics.getJSONObject("galaxy").getInt("width") > metrics.getJSONObject("galaxy").getInt("height");
+            if (metrics.getInt("visibleBars") == 0 && landscape && canvasReady) break;
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        assertEquals("Immersive graph presentation must hide system bars", 0, metrics.getInt("visibleBars"));
+        assertTrue("The WebView has not finished rotating", metrics.getJSONArray("viewport").getDouble(0) > metrics.getJSONArray("viewport").getDouble(1));
+        assertEquals(kind, metrics.getString("active"));
+        org.json.JSONObject graph = metrics.getJSONObject(kind);
+        assertTrue("The graph dialog is not open", graph.getBoolean("open"));
+        assertEquals(metrics.getJSONArray("viewport").getDouble(0), graph.getJSONObject("rect").getDouble("width"), 1);
+        assertEquals(metrics.getJSONArray("viewport").getDouble(1), graph.getJSONObject("rect").getDouble("height"), 1);
+        assertEquals("Graph controls extend outside the screen: " + metrics.getJSONArray("outsideControls"), 0, metrics.getJSONArray("outsideControls").length());
+        assertTrue("Downloaded graph nodes are missing", graph.getInt("nodes") >= 2);
+        if (kind.equals("map")) assertTrue("The graph canvas is too short", graph.getJSONObject("graph").getDouble("height") >= 180);
+        else { assertTrue(graph.getInt("width") > 2); assertTrue(graph.getInt("height") > 2); assertEquals("active", graph.getString("resources")); }
+        device.waitForIdle(1200);
+    }
+
+    @Test public void relationshipLandscapePresentation() throws Exception {
+        openRelationships(); clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
+        screenshot("android-map-landscape");
+        UiObject2 map = find(By.res("relationship-map-dialog"));
+        UiObject2 node = map.findObject(By.descStartsWith("林舟，"));
+        assertNotNull("The relation graph node is not reachable", node);
+        Rect before = node.getVisibleBounds();
+        device.drag(before.centerX(), before.centerY(), before.centerX() + 90, before.centerY() + 40, 24);
+        device.waitForIdle(1200);
+        Rect after = find(By.res("relationship-map-dialog")).findObject(By.descStartsWith("林舟，")).getVisibleBounds();
+        assertTrue("Touch dragging must move graph nodes", Math.abs(after.centerX() - before.centerX()) > 4 || Math.abs(after.centerY() - before.centerY()) > 4);
+        find(By.res("relationship-map-dialog")).findObject(By.text("适配")).click();
+        clickId("mobile-map-presentation-toggle"); awaitGraphOrientation(false);
+        assertTrue("Leaving landscape must retain the graph preview", graphMetrics().getJSONObject("map").getBoolean("open"));
+        assertEquals("", graphMetrics().getString("active"));
+        clickId("mobile-map-presentation-toggle"); assertGraphFullscreen("map");
+        device.pressBack(); awaitGraphOrientation(false);
+        assertFalse("Native back must close the map preview", graphMetrics().getJSONObject("map").getBoolean("open"));
+        find(By.desc("放大关系图")).click();
+        assertTrue("The original portrait preview must remain available", device.getDisplayHeight() > device.getDisplayWidth());
+        clickId("relationship-map-close");
+    }
+
+    @Test public void galaxyLandscapePresentation() throws Exception {
+        openRelationships(); find(By.desc("全屏银河图")).click(); find(By.res("mobile-galaxy-presentation-toggle"));
+        assertTrue("Opening the ordinary galaxy must not force landscape", device.getDisplayHeight() > device.getDisplayWidth());
+        clickId("mobile-galaxy-presentation-toggle"); assertGraphFullscreen("galaxy");
+        double zoom = graphMetrics().getJSONObject("galaxy").getDouble("zoom");
+        Rect zoomBounds = find(By.res("galaxy-zoom-in")).getVisibleBounds();
+        clickId("galaxy-zoom-in");
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5000;
+        org.json.JSONObject zoomed;
+        do { zoomed = graphMetrics(); if (zoomed.getJSONObject("galaxy").getDouble("zoom") > zoom) break; android.os.SystemClock.sleep(50); } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        assertTrue("Galaxy zoom must work in landscape: initial=" + zoom + ", target=" + zoomBounds + ", state=" + zoomed, zoomed.getJSONObject("galaxy").getDouble("zoom") > zoom);
+        clickId("galaxy-reset"); clickId("galaxy-grid");
+        deadline = android.os.SystemClock.elapsedRealtime() + 5000;
+        boolean grid;
+        do { grid = graphMetrics().getJSONObject("galaxy").getBoolean("grid"); if (grid) break; android.os.SystemClock.sleep(50); } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        assertTrue("The galaxy grid control is not responding", grid);
+        screenshot("android-galaxy-landscape");
+        clickId("mobile-galaxy-presentation-toggle"); awaitGraphOrientation(false);
+        assertTrue("Leaving landscape must retain the galaxy", graphMetrics().getJSONObject("galaxy").getBoolean("open"));
+        clickId("galaxy-close");
+        assertEquals("released", graphMetrics().getJSONObject("galaxy").getString("resources"));
+        clickId("mobile-map-presentation-open"); assertGraphFullscreen("map");
+        find(By.res("relationship-map-dialog")).findObject(By.desc("全屏银河图")).click(); assertGraphFullscreen("galaxy");
+        clickId("galaxy-close"); assertGraphFullscreen("map");
+        device.pressBack(); awaitGraphOrientation(false);
+        assertEquals("", graphMetrics().getString("active"));
+    }
+
     private org.json.JSONObject fontMetrics() throws Exception {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();

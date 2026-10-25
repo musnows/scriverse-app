@@ -47,7 +47,7 @@ try {
   console.log(adb("install", "-r", "android/app/build/outputs/apk/debug/app-debug.apk").trim());
   console.log(adb("install", "-r", "android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk").trim());
   for (const port of ports) adb("reverse", `tcp:${port}`, `tcp:${port}`);
-  instrument("top.scriverse.app.NativeWorkspaceTest,com.getcapacitor.myapp.ExampleInstrumentedTest", "nativeSecurityAndAuthentication");
+  instrument("top.scriverse.app.NativeWorkspaceTest,top.scriverse.app.GraphPresentationTest,com.getcapacitor.myapp.ExampleInstrumentedTest", "nativeSecurityAndAuthentication");
   workflow("prepareOfflineEdit");
   adb("shell", "am", "force-stop", packageName);
   adb("reverse", "--remove", `tcp:${fixture.port}`);
@@ -70,10 +70,13 @@ try {
   workflow("welcomeDirectoryShortcut");
   workflow("aiControlsSingleRow");
   workflow("compactAiHeader");
+  workflow("portraitRelationshipPreview");
+  workflow("relationshipLandscapePresentation");
+  workflow("galaxyLandscapePresentation");
   workflow("globalFontSizingAcrossPages");
   adb("shell", "am", "force-stop", packageName);
   workflow("globalFontSizeSurvivesRestart");
-  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-ai-compact-header", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
+  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-ai-compact-header", "android-map-landscape", "android-galaxy-landscape", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
     adb("pull", `/sdcard/Android/data/${packageName}/files/${name}.png`, resolve(directory, `${name}.png`));
   }
   const result = { result: "passed", device, packageName, phases, uploadedChapterVersion: chapter.versionNo, offlineModel: llm };

@@ -3,6 +3,9 @@ package top.scriverse.app;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -19,6 +22,7 @@ public class MainActivity extends BridgeActivity {
     private int graphPreviousOrientation;
     private int graphPreviousBarsBehavior;
     private int graphPreviousVisibleBars;
+    private Drawable graphPreviousBackground;
     private boolean graphBarsRestoring;
     private final android.view.ViewTreeObserver.OnGlobalLayoutListener graphBarRestorationObserver = this::checkGraphBarsRestored;
 
@@ -42,6 +46,8 @@ public class MainActivity extends BridgeActivity {
             if (!graphPresentationActive) {
                 graphPreviousOrientation = getRequestedOrientation();
                 graphPreviousBarsBehavior = controller.getSystemBarsBehavior();
+                graphPreviousBackground = getWindow().getDecorView().getBackground();
+                getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
                 if (!graphBarsRestoring) {
                     int visible = visibleSystemBars();
                     graphPreviousVisibleBars = visible < 0 ? WindowInsetsCompat.Type.systemBars() : visible;
@@ -54,6 +60,7 @@ public class MainActivity extends BridgeActivity {
         } else if (graphPresentationActive) {
             graphPresentationActive = false;
             graphBarsRestoring = true;
+            getWindow().setBackgroundDrawable(graphPreviousBackground);
             setRequestedOrientation(graphPreviousOrientation);
             controller.setSystemBarsBehavior(graphPreviousBarsBehavior);
             if (graphPreviousVisibleBars != 0) controller.show(graphPreviousVisibleBars);
@@ -63,6 +70,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void hideGraphSystemBars() {
+        getWindow().getDecorView().setBackgroundColor(Color.BLACK);
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         controller.hide(WindowInsetsCompat.Type.systemBars());

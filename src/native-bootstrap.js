@@ -181,5 +181,5 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (isWorkspace && profile) installMobileInterface({ profile, offline: forcedOffline, requestSwitch, onAiWorkspaceChange: updateConversationRendering });
+  if (isWorkspace && profile) installMobileInterface({ profile, offline: forcedOffline, requestSwitch, onAiWorkspaceChange: updateConversationRendering, onGraphPresentation: (active) => native ? native.setGraphPresentation({ active }) : Promise.resolve() });
 });

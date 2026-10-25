@@ -80,14 +80,17 @@ public class GraphPresentationTest {
 
     @Test public void landscapePresentationRestoresOrientationAndSystemBars() {
         int before = visibleBars();
+        android.graphics.drawable.Drawable background = ui(() -> activity.getWindow().getDecorView().getBackground());
         int behavior = ui(() -> WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView()).getSystemBarsBehavior());
         ui(() -> { activity.setGraphPresentation(true); return null; });
         await("The activity did not enter landscape", () -> device.getDisplayWidth() > device.getDisplayHeight());
         await("Immersive graph presentation did not hide system bars", () -> visibleBars() == 0);
+        await("Fullscreen cutout edges must use a black background", () -> ui(() -> ((android.graphics.drawable.ColorDrawable) activity.getWindow().getDecorView().getBackground()).getColor()) == android.graphics.Color.BLACK);
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, (int) ui(activity::getRequestedOrientation));
         ui(() -> { activity.setGraphPresentation(true); activity.setGraphPresentation(false); return null; });
         await("The original orientation was not restored", () -> device.getDisplayHeight() > device.getDisplayWidth());
         await("The original system bars were not restored", () -> visibleBars() == before);
+        assertSame(background, ui(() -> activity.getWindow().getDecorView().getBackground()));
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, (int) ui(activity::getRequestedOrientation));
         assertEquals(behavior, (int) ui(() -> WindowCompat.getInsetsController(activity.getWindow(), activity.getWindow().getDecorView()).getSystemBarsBehavior()));
     }
