@@ -271,6 +271,37 @@ public class MobileWorkflowTest {
         assertTrue("Character filters must start collapsed", !device.hasObject(By.res("character-filter-panel")));
     }
 
+    private UiObject2 openThemeCommand() throws Exception {
+        assertTrue("The previous command sheet did not close", device.wait(Until.gone(By.res("mobile-command-sheet").pkg(packageName)), 5000));
+        UiObject2 more = find(By.res("mobile-bottom-nav")).findObject(By.text("更多"));
+        assertNotNull("The mobile More button is missing", more); more.click(); find(By.res("mobile-command-sheet"));
+        return scrollToText("切换明暗主题");
+    }
+
+    private void assertThemeCommandIcon(String theme, String iconClass) throws Exception {
+        org.json.JSONObject metrics = fontMetrics();
+        assertEquals("The selected theme did not change", theme, metrics.getString("theme"));
+        org.json.JSONArray icons = metrics.getJSONArray("themeIcons");
+        assertEquals("The theme command must display exactly one icon in " + theme + " mode", 1, icons.length());
+        assertTrue("The theme command displays the wrong state icon", icons.getString(0).contains(iconClass));
+        assertMobileLayout();
+    }
+
+    @Test public void themeCommandIcons() throws Exception {
+        ensureLauncher(); clickText("离线进入");
+        UiObject2 command = openThemeCommand();
+        if (fontMetrics().getString("theme").equals("dark")) { command.click(); command = openThemeCommand(); }
+        assertThemeCommandIcon("light", "theme-icon-moon"); screenshot("android-theme-light");
+        command.click(); command = openThemeCommand();
+        assertThemeCommandIcon("dark", "theme-icon-sun"); screenshot("android-theme-dark");
+        command.click(); command = openThemeCommand(); assertThemeCommandIcon("light", "theme-icon-moon");
+        device.pressBack(); chooseBook();
+        for (int cycle = 0; cycle < 2; cycle++) {
+            openThemeCommand().click(); openThemeCommand(); assertThemeCommandIcon("dark", "theme-icon-sun");
+            scrollToText("切换明暗主题").click(); openThemeCommand(); assertThemeCommandIcon("light", "theme-icon-moon"); device.pressBack();
+        }
+    }
+
     @Test public void welcomeDirectoryShortcut() throws Exception {
         ensureLauncher(); clickText("离线进入"); chooseBook();
         assertTrue("The welcome directory shortcut must work offline", find(By.res("welcome-directory-button")).isEnabled());
@@ -506,6 +537,7 @@ public class MobileWorkflowTest {
         java.util.concurrent.CountDownLatch observed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.atomic.AtomicReference<String> result = new java.util.concurrent.atomic.AtomicReference<>();
         String inspect = "JSON.stringify({ scale: Number(document.documentElement.dataset.appFontSize), overflow: document.documentElement.scrollWidth > innerWidth, "
+            + "theme:document.documentElement.dataset.theme,themeIcons:[...[...document.querySelectorAll('#mobile-command-sheet .mobile-command')].find(node=>node.querySelector('strong')?.textContent==='切换明暗主题')?.querySelectorAll('svg')??[]].filter(node=>{const rect=node.getBoundingClientRect();return rect.width>0&&rect.height>0&&getComputedStyle(node).visibility!=='hidden';}).map(node=>node.getAttribute('class')), "
             + "aiOptions: ['ai-task','ai-scope','ai-send-mode'].map(id => { const node=document.getElementById(id); return node ? {id, ...node.getBoundingClientRect().toJSON(), value:node.value} : null; }), "
             + "aiHeader: (()=>{const title=document.querySelector('.ai-heading-title strong');const button=document.querySelector('#ai-panel-toggle');if(!title || !button)return null;const style=getComputedStyle(button,'::before');const width=button.getBoundingClientRect().width;return {titleFont:parseFloat(getComputedStyle(title).fontSize),fontScale:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ai-font-scale')) || 1,closeFont:parseFloat(getComputedStyle(button).fontSize),closeVisualWidth:width-parseFloat(style.left)-parseFloat(style.right),closeTargetWidth:width};})(), "
             + "presetCount: document.querySelectorAll('#app-font-size input[type=radio]').length, checkedPresetCount: document.querySelectorAll('#app-font-size input:checked').length, selectedPreset: document.querySelector('#app-font-size input:checked')?.value, percentageControls: Boolean(document.querySelector('#app-font-size input[type=range]')) || /[%％]/u.test(document.querySelector('.app-font-settings')?.textContent ?? ''), "

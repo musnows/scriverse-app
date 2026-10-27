@@ -67,6 +67,7 @@ try {
   assert.ok(llm.calls >= 2, "The native chat did not complete its offline tool round trip");
   for (const property of ["observedWorkContext", "observedLockedSetting", "observedOfflineToolResult"]) assert.equal(llm[property], true, property);
   workflow("libraryNavigationAndNativeBack");
+  workflow("themeCommandIcons");
   workflow("welcomeDirectoryShortcut");
   workflow("aiControlsSingleRow");
   workflow("compactAiHeader");
@@ -76,7 +77,7 @@ try {
   workflow("globalFontSizingAcrossPages");
   adb("shell", "am", "force-stop", packageName);
   workflow("globalFontSizeSurvivesRestart");
-  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-ai-compact-header", "android-map-landscape", "android-galaxy-landscape", "android-galaxy-landscape-large", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
+  for (const name of ["android-offline-editor", "android-offline-restored", "android-online-synced", "android-local-ai-config", "android-offline-ai-chat", "android-characters", "android-theme-light", "android-theme-dark", "android-welcome-directory", "android-welcome-directory-open", "android-ai-controls", "android-ai-compact-header", "android-map-landscape", "android-galaxy-landscape", "android-galaxy-landscape-large", "android-font-markdown-large", "android-font-settings-large", "android-font-settings-default"]) {
     adb("pull", `/sdcard/Android/data/${packageName}/files/${name}.png`, resolve(directory, `${name}.png`));
   }
   const result = { result: "passed", device, packageName, phases, uploadedChapterVersion: chapter.versionNo, offlineModel: llm };

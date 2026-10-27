@@ -80,8 +80,8 @@ export function installMobileInterface({ profile, offline, requestSwitch, onAiWo
     const button = element("button", "mobile-command");
     button.type = "button";
     button.disabled = disabled;
-    const sourceIcon = source?.querySelector("svg");
-    button.append(sourceIcon ? sourceIcon.cloneNode(true) : icon(kind));
+    const sourceIcons = [...(source?.querySelectorAll("svg") ?? [])];
+    button.append(...(sourceIcons.length ? sourceIcons.map((sourceIcon) => sourceIcon.cloneNode(true)) : [icon(kind)]));
     const copy = element("span", "mobile-command-copy");
     copy.append(element("strong", "", label));
     if (detail) copy.append(element("small", "", detail));
